@@ -39,20 +39,32 @@ struct AppNotification: Codable, Identifiable {
         switch type {
         case .giftReceived:
             return "🎁"
-        case .friendRequest:
-            return "👥"
-        case .friendAccepted:
+        case .giftAccepted:
             return "✅"
-        case .achievementUnlocked:
+        case .friendRequest:
+            return "👋"
+        case .friendAccepted:
+            return "🤝"
+        case .achievement:
             return "🏆"
+        case .leaderboardChange:
+            return "📊"
+        case .pointsExpiring:
+            return "⚠️"
+        case .weeklyReport:
+            return "📈"
         }
     }
 }
 
 enum NotificationType: String, Codable {
     case giftReceived = "gift_received"
+    case giftAccepted = "gift_accepted"
     case friendRequest = "friend_request"
     case friendAccepted = "friend_accepted"
-    case achievementUnlocked = "achievement_unlocked"
+    case achievement = "achievement"
+    case leaderboardChange = "leaderboard_change"
+    case pointsExpiring = "points_expiring"
+    case weeklyReport = "weekly_report"
 }
 
