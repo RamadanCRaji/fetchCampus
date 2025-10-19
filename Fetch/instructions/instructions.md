@@ -1,376 +1,736 @@
-# 🔴 CRITICAL BUGS TO FIX - DO NOT HALLUCINATE
+# 🎨 UI FIXES - MATCH FIGMA DESIGNS EXACTLY
 
-## Context
-
-The authentication system is built and mostly working, but has 3 specific bugs that need precise fixes.
-
-## Bug 1: Email Verification Doesn't Navigate to Home
+## Issue 1: Bottom Tab Bar Icons Are Too Small
 
 **PROBLEM:**
+The tab bar icons at the bottom are TINY (look like dots) instead of proper sized icons.
 
--  User signs up successfully ✅
--  Verification email is sent ✅
--  User clicks verification link ✅
--  User logs in after verification ✅
--  **BUT: App stays on VerificationRequiredView instead of navigating to HomeView** ❌
+**COMPARISON:**
 
-**ROOT CAUSE:**
-The app is not checking verification status after user verifies email. It needs to:
-
-1. Reload user data from Firebase when app comes to foreground
-2. Check if email is now verified
-3. Update authentication state
-4. Navigate to HomeView
+-  **Figma Design:** Icons are 26pt, clearly visible
+-  **Current App:** Icons appear to be ~12-14pt, barely visible
 
 **FIX REQUIRED:**
 
-### Step 1: Update AuthenticationManager to Check Verification Status
+````swift
+FILE: Create a new file - views/Components/CustomTabBar.swift
 
+Build a custom tab bar that matches Figma exactly.
+
+DESIGN SPECS FROM FIGMA:
+
+Tab Bar Container:
+- Height: 80pt (includes safe area)
+- Background: White with blur effect
+- Top border: 0.5pt, color #E5E5EA
+- Shadow: 0 -2px 8px rgba(0,0,0,0.05)
+
+Each Tab Item:
+- Icon size: 26pt x 26pt
+- Label: 11pt, regular weight
+- Spacing between icon and label: 4pt
+- Active color: #007AFF (blue)
+- Inactive color: #8E8E93 (gray)
+- Vertical padding: 8pt top, 4pt bottom
+
+4 Tabs (left to right):
+1. Home
+   - Active icon: 🏠 (filled house emoji or SF Symbol "house.fill")
+   - Inactive icon: 🏠 (outlined house or "house")
+   - Label: "Home"
+
+2. Friends
+   - Active icon: 👥 (filled people emoji or SF Symbol "person.2.fill")
+   - Inactive icon: 👥 (outlined or "person.2")
+   - Label: "Friends"
+
+3. Leaderboard
+   - Active icon: 📊 (filled chart emoji or SF Symbol "chart.bar.fill")
+   - Inactive icon: 📊 (outlined or "chart.bar")
+   - Label: "Leaderboard"
+
+4. You (Profile)
+   - Active icon: 👤 (filled person emoji or SF Symbol "person.fill")
+   - Inactive icon: 👤 (outlined or "person")
+   - Label: "You"
+
+IMPLEMENTATION:
 ```swift
-// FILE: services/AuthenticationManager.swift
+import SwiftUI
 
-// ADD THIS FUNCTION:
-func checkEmailVerificationStatus() async {
-    guard let user = Auth.auth().currentUser else { return }
+struct CustomTabBar: View {
+    @Binding var selectedTab: Int
 
-    do {
-        // Reload user from Firebase to get latest verification status
-        try await user.reload()
+    var body: some View {
+        VStack(spacing: 0) {
+            // Top border
+            Rectangle()
+                .fill(Color(hex: "E5E5EA"))
+                .frame(height: 0.5)
 
-        // Update verification state
-        await MainActor.run {
-            self.isEmailVerified = user.isEmailVerified
+            HStack(spacing: 0) {
+                // Home Tab
+                TabBarItem(
+                    icon: "house.fill",
+                    title: "Home",
+                    isSelected: selectedTab == 0,
+                    action: { selectedTab = 0 }
+                )
 
-            // If now verified, fetch user data and navigate to home
-            if user.isEmailVerified {
-                Task {
-                    await self.fetchUserData(userId: user.uid)
-                }
+                // Friends Tab
+                TabBarItem(
+                    icon: "person.2.fill",
+                    title: "Friends",
+                    isSelected: selectedTab == 1,
+                    action: { selectedTab = 1 }
+                )
+
+                // Leaderboard Tab
+                TabBarItem(
+                    icon: "chart.bar.fill",
+                    title: "Leaderboard",
+                    isSelected: selectedTab == 2,
+                    action: { selectedTab = 2 }
+                )
+
+                // Profile Tab
+                TabBarItem(
+                    icon: "person.fill",
+                    title: "You",
+                    isSelected: selectedTab == 3,
+                    action: { selectedTab = 3 }
+                )
             }
+            .frame(height: 60)
+            .background(.ultraThinMaterial)
         }
-    } catch {
-        print("Error checking verification status: \(error.localizedDescription)")
+        .shadow(color: .black.opacity(0.05), radius: 8, y: -2)
     }
 }
 
-// ADD PROPERTY if not already there:
-@Published var isEmailVerified = true
-```
+struct TabBarItem: View {
+    let icon: String
+    let title: String
+    let isSelected: Bool
+    let action: () -> Void
 
-### Step 2: Update VerificationRequiredView to Check Status
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 26))
+                    .frame(height: 26)
 
-```swift
-// FILE: views/Auth/VerificationRequiredView.swift
-
-// ADD THESE PROPERTIES:
-@StateObject private var authManager: AuthenticationManager
-@State private var checkTimer: Timer?
-
-// ADD THIS IN .onAppear:
-.onAppear {
-    // Check verification status every 3 seconds
-    checkTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { _ in
-        Task {
-            await authManager.checkEmailVerificationStatus()
+                Text(title)
+                    .font(.system(size: 11, weight: .regular))
+            }
+            .foregroundColor(isSelected ? Color(hex: "007AFF") : Color(hex: "8E8E93"))
+            .frame(maxWidth: .infinity)
         }
     }
 }
-.onDisappear {
-    checkTimer?.invalidate()
-}
 ```
 
-### Step 3: Add Manual "I've Verified" Button
-
+USAGE in FetchApp.swift or MainTabView.swift:
 ```swift
-// ADD THIS BUTTON to VerificationRequiredView below the Resend button:
+@State private var selectedTab = 0
 
-Button(action: {
-    Task {
-        await authManager.checkEmailVerificationStatus()
+var body: some View {
+    ZStack {
+        // Content
+        TabView(selection: $selectedTab) {
+            HomeView()
+                .tag(0)
+
+            FriendsView()
+                .tag(1)
+
+            LeaderboardView()
+                .tag(2)
+
+            ProfileView()
+                .tag(3)
+        }
+        .tabViewStyle(.page(indexDisplayMode: .never))
+
+        // Custom tab bar overlay
+        VStack {
+            Spacer()
+            CustomTabBar(selectedTab: $selectedTab)
+        }
+        .ignoresSafeArea(edges: .bottom)
     }
-}) {
-    Text("I've Verified My Email")
-        .font(.system(size: 17, weight: .semibold))
-        .foregroundColor(Color(hex: "007AFF"))
-        .frame(maxWidth: .infinity)
-        .frame(height: 50)
-        .background(Color.white)
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color(hex: "007AFF"), lineWidth: 2)
-        )
-        .cornerRadius(12)
 }
-.padding(.horizontal, 16)
-.padding(.top, 12)
 ```
 
-**EXPECTED BEHAVIOR AFTER FIX:**
-
-1. User verifies email via link
-2. User returns to app
-3. Either:
-   -  Timer auto-checks every 3 seconds and detects verification → navigates to home
-   -  User taps "I've Verified My Email" → checks status → navigates to home
+OR simpler approach - just increase icon size in existing TabView:
+```swift
+.tabItem {
+    Image(systemName: "house.fill")
+        .environment(\.symbolVariants, selectedTab == 0 ? .fill : .none)
+        .font(.system(size: 26)) // ← ADD THIS
+    Text("Home")
+        .font(.system(size: 11)) // ← ADD THIS
+}
+```
+````
 
 ---
 
-## Bug 2: Double Back Button Appearing
+## Issue 2: HomeView UI Doesn't Match Figma
 
-**PROBLEM:**
-Navigation bar shows TWO back buttons (both saying "< Back")
+**DIFFERENCES FOUND:**
 
-**ROOT CAUSE:**
-Both the custom toolbar back button AND NavigationStack's default back button are showing.
+Comparing actual app (Image 1) to Figma (Image 2):
 
-**FIX REQUIRED:**
-IDENTIFY which view has double back buttons (likely SignUpView or LoginView)
-IN THAT VIEW:
-REMOVE this code:
-swift.toolbar {
-ToolbarItem(placement: .navigationBarLeading) {
-Button(action: { dismiss() }) {
-HStack(spacing: 4) {
-Image(systemName: "chevron.left")
-Text("Back")
-}
-}
-}
-}
-REPLACE with:
-swift.navigationBarBackButtonHidden(false) // Use default back button
-.navigationTitle("Create Account") // or appropriate title
-.navigationBarTitleDisplayMode(.inline)
-IF you want custom styling of the back button, use this instead:
-swift.navigationBarBackButtonHidden(true)
-.toolbar {
-ToolbarItem(placement: .navigationBarLeading) {
-Button(action: { dismiss() }) {
-HStack(spacing: 4) {
-Image(systemName: "chevron.left")
-.font(.system(size: 17, weight: .semibold))
-Text("Back")
-.font(.system(size: 17))
-}
-.foregroundColor(Color(hex: "007AFF"))
-}
-}
+1. **Activity Section - Empty State**
 
-    ToolbarItem(placement: .principal) {
-        Text("Create Account")
-            .font(.system(size: 17, weight: .semibold))
-    }
+   -  ✅ Currently shows: "No activity yet" with party emoji
+   -  ❌ Should show: Activity cards (Jake, Emma, Tyler examples)
+   -  FIX: Use placeholder/sample data until real transactions exist
 
-}
+2. **Points Card Styling**
 
-```
+   -  Current: Good match
+   -  Potential improvement: Verify corner radius is exactly 14pt
+   -  Verify shadow matches: `shadowColor: .black.opacity(0.08), radius: 8, y: 2`
 
-But NEVER have both custom and default showing at once.
-```
-
-**TEST AFTER FIX:**
-
--  Navigate to Sign Up screen
--  Should see ONLY ONE back button ✅
-
----
-
-## Bug 3: Three Dots at Bottom of Screen
-
-**PROBLEM:**
-Three dots (...) appearing at bottom of screen (likely pagination dots or debug indicators)
-
-**WHERE TO LOOK:**
-
-### Check 1: WelcomeView or SplashView
-
-```
-Search for:
-- TabView with PageTabViewStyle
-- Any View with .tabViewStyle(.page)
-- Any PageControl or similar component
-
-If found, check if indexViewStyle is set to hide:
-.tabViewStyle(.page(indexDisplayMode: .never))
-```
-
-### Check 2: Debug/Development Indicators
-
-```
-Search for:
-- Text("...")
-- Any HStack/VStack with Circle() views
-- Any overlay or debugging views
-```
-
-### Check 3: System UI Elements
-
-```
-If dots are at very bottom, might be iPhone home indicator.
-
-In any fullscreen views, add:
-.edgesIgnoringSafeArea(.bottom) // NOT recommended
-OR ensure proper safe area handling
-```
+3. **Button Sizing**
+   -  Current: Good
+   -  Verify Gift button is exactly 60% width, Invite is 40%
 
 **FIX:**
 
+````swift
+FILE: views/Main/HomeView.swift
+
+UPDATES NEEDED:
+
+1. ADD SAMPLE ACTIVITY DATA (for demo/testing):
+```swift
+// At top of HomeView
+let sampleActivities = [
+    Activity(
+        id: "1",
+        userId: "current_user",
+        type: .received,
+        fromUserId: "jake_id",
+        fromName: "Jake",
+        amount: 200,
+        message: "accepted your gift",
+        timestamp: Timestamp(date: Date().addingTimeInterval(-120))
+    ),
+    Activity(
+        id: "2",
+        userId: "current_user",
+        type: .sent,
+        toUserId: "emma_id",
+        toName: "Emma",
+        amount: 150,
+        timestamp: Timestamp(date: Date().addingTimeInterval(-3600))
+    ),
+    Activity(
+        id: "3",
+        userId: "current_user",
+        type: .received,
+        fromUserId: "tyler_id",
+        fromName: "Tyler",
+        amount: 100,
+        timestamp: Timestamp(date: Date().addingTimeInterval(-10800))
+    )
+]
 ```
-Step 1: FIND THE VIEW with the three dots
-- Check WelcomeView.swift
-- Check SplashView.swift
-- Check any TabView components
 
-Step 2: IF it's a TabView page indicator:
-REMOVE or ADD:
-.tabViewStyle(.page(indexDisplayMode: .never))
+2. UPDATE ACTIVITY SECTION to show sample data:
+```swift
+// Activity Section
+VStack(alignment: .leading, spacing: 16) {
+    Text("Activity")
+        .font(.system(size: 22, weight: .bold))
+        .foregroundColor(.black)
+        .padding(.horizontal, 16)
 
-Step 3: IF it's debug text or circles:
-DELETE the component entirely
-
-Step 4: IF it's system home indicator:
-DO NOT try to hide it - it's iOS system UI
-Just ensure content doesn't overlap with safe area
+    // Show sample activities (replace with real data when available)
+    if sampleActivities.isEmpty {
+        // Empty state
+        VStack(spacing: 16) {
+            Text("🎉")
+                .font(.system(size: 64))
+            Text("No activity yet")
+                .font(.system(size: 17, weight: .semibold))
+            Text("Start gifting points to see your activity here")
+                .font(.system(size: 15))
+                .foregroundColor(Color(hex: "8E8E93"))
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 40)
+        .background(Color.white)
+        .cornerRadius(12)
+        .padding(.horizontal, 16)
+    } else {
+        ForEach(sampleActivities) { activity in
+            ActivityRow(activity: activity)
+                .padding(.horizontal, 16)
+        }
+    }
+}
 ```
 
-**CURSOR AI: SEARCH THESE FILES FOR THREE DOTS:**
+3. CREATE ActivityRow component:
+```swift
+struct ActivityRow: View {
+    let activity: Activity
 
-1. views/SplashView.swift
-2. views/Auth/WelcomeView.swift
-3. views/Auth/SignUpView.swift
-4. views/Auth/LoginView.swift
-5. views/Auth/VerificationRequiredView.swift
-6. views/Main/HomeView.swift
+    var body: some View {
+        HStack(spacing: 12) {
+            // Avatar
+            Circle()
+                .fill(Color(hex: "E5E5EA"))
+                .frame(width: 44, height: 44)
+                .overlay(
+                    Image(systemName: "person.fill")
+                        .foregroundColor(Color(hex: "8E8E93"))
+                        .font(.system(size: 20))
+                )
 
-Look for:
+            // Content
+            VStack(alignment: .leading, spacing: 2) {
+                Text(activity.displayText)
+                    .font(.system(size: 15))
+                    .foregroundColor(.black)
 
--  Text containing "..."
--  HStack with 3 Circle() or similar views
--  TabView with page indicators
--  Any debugging UI
+                Text(activity.timeAgo)
+                    .font(.system(size: 13))
+                    .foregroundColor(Color(hex: "8E8E93"))
+            }
+
+            Spacer()
+
+            // Amount
+            Text(activity.amountText)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(activity.amountColor)
+        }
+        .padding(16)
+        .background(Color.white)
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
+    }
+}
+
+// Helper computed properties for Activity model
+extension Activity {
+    var displayText: String {
+        switch type {
+        case .received:
+            if let name = fromName {
+                return "\(name) sent you points"
+            }
+            return "You received points"
+        case .sent:
+            if let name = toName {
+                return "You sent \(amount) points to \(name)"
+            }
+            return "You sent points"
+        case .earned:
+            return message ?? "You earned points"
+        }
+    }
+
+    var amountText: String {
+        type == .sent ? "-\(amount)" : "+\(amount)"
+    }
+
+    var amountColor: Color {
+        type == .sent ? Color(hex: "8E8E93") : Color(hex: "34C759")
+    }
+}
+```
+````
 
 ---
 
-## 🎯 CURSOR AI IMPLEMENTATION INSTRUCTIONS
+## Issue 3: Build Profile Page (Screen 10)
 
-**READ THESE RULES CAREFULLY - DO NOT DEVIATE:**
+**PROBLEM:**
+Profile page doesn't exist yet. Need to build it matching Figma design.
 
-### Rule 1: NO HALLUCINATION
+**FIGMA DESIGN SPECS:**
+CREATE: views/Main/ProfileView.swift
+LAYOUT (from top to bottom):
 
--  Only fix the EXACT bugs described above
--  Do NOT add new features
--  Do NOT refactor working code
--  Do NOT change file structure
--  Do NOT add comments explaining what "could be improved"
+HEADER SECTION (White card, rounded 16pt, centered content):
 
-### Rule 2: MINIMAL CHANGES
+Profile Avatar:
 
--  Change ONLY the code necessary to fix each bug
--  Do NOT rewrite entire files
--  Do NOT change variable names that work
--  Do NOT modify styling that isn't broken
+Circle: 120pt diameter
+Border: 4pt, gradient (blue to purple)
+Background: Light blue
+Initial letter: First letter of name, 48pt, blue, bold
 
-### Rule 3: STEP-BY-STEP APPROACH
+Name: "Ramadan Raji" (28pt, bold, black)
+Username: "@madisonc" (17pt, gray #8E8E93)
+School Badge: "🎓 UW Madison" (15pt, gray text, light blue background pill)
+Edit Profile Button:
+
+Text: "Edit Profile" (17pt, semibold, blue)
+Background: White
+Border: 2pt, blue
+Corner radius: 12pt
+Height: 44pt
+Width: ~150pt
+
+STATS SECTION (3 columns, white background):
+HStack with equal spacing:
+Column 1 - Points:
+
+Icon: ⭐ (40pt)
+Number: "500" (32pt, bold, black)
+Label: "Points" (13pt, gray)
+
+Column 2 - Gifts Sent:
+
+Icon: 🎁 (40pt)
+Number: "12" (32pt, bold, black)
+Label: "Gifts Sent" (13pt, gray)
+
+Column 3 - Rank:
+
+Icon: 🏆 (40pt)
+Number: "#3" (32pt, bold, blue #007AFF)
+Label: "Your Rank" (13pt, gray)
+
+GENEROSITY LEVEL SECTION (White card, rounded 12pt):
+
+Left side:
+
+Icon: 🌱 (40pt, in light green circle)
+Title: "Generosity Level" (15pt, gray)
+Level: "Newbie" (24pt, bold, black)
+
+Right side:
+
+Score: "0 / 100" (20pt, bold, blue)
+
+Progress Bar:
+
+Background: #E5E5EA
+Fill: Blue gradient
+Height: 8pt
+Corner radius: 4pt
+Current: 0% (0/100)
+
+Help text: "Send 88 more gifts to reach 'Helper' 🌿" (13pt, gray)
+
+ACHIEVEMENTS SECTION:
+
+Header:
+
+Left: "Achievements" (22pt, bold, black)
+Right: "View All >" (15pt, blue, tappable)
+
+Achievement Grid: (2 columns, coming soon)
+
+BOTTOM TAB BAR (same as Home screen)
+
+IMPLEMENTATION:
+swiftimport SwiftUI
+
+struct ProfileView: View {
+@EnvironmentObject var authManager: AuthenticationManager
+@State private var showEditProfile = false
+
+    var user: User? {
+        authManager.currentUser
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 24) {
+                // Header Card
+                VStack(spacing: 16) {
+                    // Avatar
+                    ZStack {
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color(hex: "007AFF"), Color(hex: "5856D6")],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 128, height: 128)
+
+                        Circle()
+                            .fill(Color(hex: "E3F2FD"))
+                            .frame(width: 120, height: 120)
+
+                        Text(String(user?.name.prefix(1) ?? "M").uppercased())
+                            .font(.system(size: 48, weight: .bold))
+                            .foregroundColor(Color(hex: "007AFF"))
+                    }
+
+                    // Name
+                    Text(user?.name ?? "User")
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundColor(.black)
+
+                    // Username
+                    Text("@\(user?.username ?? "username")")
+                        .font(.system(size: 17))
+                        .foregroundColor(Color(hex: "8E8E93"))
+
+                    // School Badge
+                    HStack(spacing: 6) {
+                        Text("🎓")
+                            .font(.system(size: 16))
+                        Text(user?.school ?? "University")
+                            .font(.system(size: 15))
+                            .foregroundColor(Color(hex: "007AFF"))
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(Color(hex: "E3F2FD"))
+                    .cornerRadius(20)
+
+                    // Edit Profile Button
+                    Button(action: { showEditProfile = true }) {
+                        Text("Edit Profile")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundColor(Color(hex: "007AFF"))
+                            .frame(width: 150, height: 44)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color(hex: "007AFF"), lineWidth: 2)
+                            )
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 32)
+                .background(Color.white)
+                .cornerRadius(16)
+                .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
+                .padding(.horizontal, 16)
+
+                // Stats Section
+                HStack(spacing: 0) {
+                    StatColumn(icon: "⭐", value: "\(user?.points ?? 500)", label: "Points")
+                    StatColumn(icon: "🎁", value: "\(user?.giftsGiven ?? 0)", label: "Gifts Sent")
+                    StatColumn(
+                        icon: "🏆",
+                        value: "#\(user?.rank ?? 3)",
+                        label: "Your Rank",
+                        valueColor: Color(hex: "007AFF")
+                    )
+                }
+                .padding(.vertical, 20)
+                .background(Color.white)
+                .cornerRadius(12)
+                .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
+                .padding(.horizontal, 16)
+
+                // Generosity Level Card
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack {
+                        // Icon + Text
+                        HStack(spacing: 12) {
+                            ZStack {
+                                Circle()
+                                    .fill(Color(hex: "E8F5E9"))
+                                    .frame(width: 56, height: 56)
+                                Text("🌱")
+                                    .font(.system(size: 28))
+                            }
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Generosity Level")
+                                    .font(.system(size: 15))
+                                    .foregroundColor(Color(hex: "8E8E93"))
+                                Text("Newbie")
+                                    .font(.system(size: 24, weight: .bold))
+                                    .foregroundColor(.black)
+                            }
+                        }
+
+                        Spacer()
+
+                        // Score
+                        Text("0 / 100")
+                            .font(.system(size: 20, weight: .bold))
+                            .foregroundColor(Color(hex: "007AFF"))
+                    }
+
+                    // Progress Bar
+                    GeometryReader { geometry in
+                        ZStack(alignment: .leading) {
+                            Rectangle()
+                                .fill(Color(hex: "E5E5EA"))
+                                .cornerRadius(4)
+
+                            Rectangle()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color(hex: "007AFF"), Color(hex: "5856D6")],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                                .frame(width: geometry.size.width * 0.0) // 0% progress
+                                .cornerRadius(4)
+                        }
+                    }
+                    .frame(height: 8)
+
+                    // Help Text
+                    Text("Send 88 more gifts to reach 'Helper' 🌿")
+                        .font(.system(size: 13))
+                        .foregroundColor(Color(hex: "8E8E93"))
+                }
+                .padding(20)
+                .background(Color.white)
+                .cornerRadius(12)
+                .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
+                .padding(.horizontal, 16)
+
+                // Achievements Section
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack {
+                        Text("Achievements")
+                            .font(.system(size: 22, weight: .bold))
+                            .foregroundColor(.black)
+
+                        Spacer()
+
+                        Button(action: {}) {
+                            Text("View All >")
+                                .font(.system(size: 15))
+                                .foregroundColor(Color(hex: "007AFF"))
+                        }
+                    }
+
+                    // Coming soon placeholder
+                    Text("Coming soon...")
+                        .font(.system(size: 15))
+                        .foregroundColor(Color(hex: "8E8E93"))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 40)
+                }
+                .padding(.horizontal, 16)
+
+                // Bottom spacing for tab bar
+                Spacer()
+                    .frame(height: 80)
+            }
+            .padding(.top, 16)
+        }
+        .background(Color(hex: "F2F2F7"))
+        .sheet(isPresented: $showEditProfile) {
+            EditProfileView()
+                .environmentObject(authManager)
+        }
+    }
+
+}
+
+struct StatColumn: View {
+let icon: String
+let value: String
+let label: String
+var valueColor: Color = .black
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Text(icon)
+                .font(.system(size: 40))
+
+            Text(value)
+                .font(.system(size: 32, weight: .bold))
+                .foregroundColor(valueColor)
+
+            Text(label)
+                .font(.system(size: 13))
+                .foregroundColor(Color(hex: "8E8E93"))
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+}
+
+#Preview {
+ProfileView()
+.environmentObject(AuthenticationManager())
+}
+BUILD EDIT PROFILE VIEW (placeholder for now):
+swiftFILE: views/Main/EditProfileView.swift
+
+struct EditProfileView: View {
+@Environment(\.dismiss) var dismiss
+
+    var body: some View {
+        NavigationStack {
+            VStack {
+                Text("Edit Profile")
+                    .font(.title)
+
+                Text("Coming soon...")
+                    .foregroundColor(.gray)
+                    .padding()
+            }
+            .navigationTitle("Edit Profile")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Save") {
+                        dismiss()
+                    }
+                    .bold()
+                }
+            }
+        }
+    }
+
+}
 
 ```
-Step 1: Fix email verification navigation
-  - Update AuthenticationManager.swift ONLY
-  - Add checkEmailVerificationStatus function
-  - Update VerificationRequiredView.swift ONLY
-  - Add timer and manual check button
 
-Step 2: Fix double back button
-  - IDENTIFY which view has the issue
-  - REMOVE duplicate back button code
-  - TEST: Only one back button shows
-
-Step 3: Remove three dots
-  - SEARCH for the dots in all view files
-  - REMOVE or hide the component
-  - TEST: No dots visible
-```
-
-### Rule 4: VERIFICATION BEFORE RESPONDING
-
-Before providing any code:
-
-1. Confirm you understand the EXACT bug
-2. State which file(s) you will modify
-3. Describe the MINIMAL change you will make
-4. Show ONLY the changed code sections (not entire files)
-
-### Rule 5: RESPONSE FORMAT
-
-```
-BUG: [Which bug you're fixing]
-FILE: [Exact file path]
-CHANGE: [What you're changing]
-
-CODE:
-[Only the changed section with 5 lines of context before/after]
-
-EXPLANATION: [One sentence why this fixes the bug]
 ```
 
 ---
 
-## ✅ TESTING CHECKLIST AFTER FIXES
+## ✅ IMPLEMENTATION CHECKLIST
 
-**Test 1: Email Verification Flow**
+**Phase 1: Fix Tab Bar (30 min)**
 
-1. Sign up with new account
-2. Receive verification email
-3. Click verification link (opens browser, shows success)
-4. Return to app
-5. Wait 3-10 seconds OR tap "I've Verified My Email"
-6. **EXPECTED:** App navigates to HomeView ✅
+-  [ ] Create CustomTabBar component OR increase icon sizes
+-  [ ] Test: Icons are clearly visible (26pt)
+-  [ ] Test: Labels are 11pt
+-  [ ] Test: Active/inactive colors work
 
-**Test 2: Back Button**
+**Phase 2: Fix HomeView (20 min)**
 
-1. Go to Sign Up screen
-2. Look at top navigation bar
-3. **EXPECTED:** See ONLY ONE back button ✅
+-  [ ] Add sample activity data
+-  [ ] Create ActivityRow component
+-  [ ] Update activity section to show data
+-  [ ] Verify all spacing matches Figma
 
-**Test 3: Three Dots**
+**Phase 3: Build ProfileView (45 min)**
 
-1. Navigate through all screens
-2. Look at bottom of each screen
-3. **EXPECTED:** No three dots visible anywhere ✅
+-  [ ] Create ProfileView.swift
+-  [ ] Build header with avatar
+-  [ ] Build stats section (3 columns)
+-  [ ] Build generosity level card
+-  [ ] Build achievements section
+-  [ ] Create EditProfileView placeholder
 
----
+**Phase 4: Connect Everything (15 min)**
 
-## 🚨 WHAT NOT TO DO
-
-❌ Do NOT rebuild the entire authentication system
-❌ Do NOT change the navigation structure completely
-❌ Do NOT add new dependencies or packages
-❌ Do NOT modify files not related to these 3 bugs
-❌ Do NOT suggest "better approaches" - just fix the bugs
-❌ Do NOT add print statements or debugging code
-❌ Do NOT change color schemes or styling (unless that IS the three dots)
-
----
-
-## CURSOR AI START HERE
-
-Fix these 3 bugs in order:
-
-1. Email verification navigation
-2. Double back button
-3. Three dots at bottom
-
-For EACH bug:
-
--  State which file you're modifying
--  Show ONLY the changed code
--  Explain in one sentence
-
-Begin with Bug 1: Email Verification Navigation
-
-```
-
----
-
-## HOW TO USE THIS
-```
+-  [ ] Update tab navigation to include ProfileView
+-  [ ] Test navigation between all tabs
+-  [ ] Verify data displays correctly
