@@ -6,17 +6,12 @@
 import SwiftUI
 
 struct WelcomeView: View {
+    @EnvironmentObject var authManager: AuthenticationManager
     @State private var showContent = false
     @State private var rotationAngle: Double = 0
-    @State private var navigateToSignUp = false
-    @State private var navigateToLogin = false
     
     var body: some View {
-        if navigateToSignUp {
-            SignUpView()
-        } else if navigateToLogin {
-            LoginView()
-        } else {
+        NavigationStack {
             ZStack {
                 Color.white
                     .ignoresSafeArea()
@@ -60,12 +55,8 @@ struct WelcomeView: View {
                     
                     // Buttons
                     VStack(spacing: 12) {
-                        // Get Started button
-                        Button(action: {
-                            withAnimation {
-                                navigateToSignUp = true
-                            }
-                        }) {
+                        // Get Started button - NavigationLink
+                        NavigationLink(destination: SignUpView()) {
                             Text("Get Started")
                                 .font(.system(size: 17, weight: .semibold))
                                 .foregroundColor(.white)
@@ -76,12 +67,8 @@ struct WelcomeView: View {
                                 .shadow(color: .blue.opacity(0.2), radius: 8, y: 2)
                         }
                         
-                        // I Have an Account button
-                        Button(action: {
-                            withAnimation {
-                                navigateToLogin = true
-                            }
-                        }) {
+                        // I Have an Account button - NavigationLink
+                        NavigationLink(destination: LoginView()) {
                             Text("I Have an Account")
                                 .font(.system(size: 17, weight: .semibold))
                                 .foregroundColor(Color(hex: "007AFF"))
@@ -95,11 +82,13 @@ struct WelcomeView: View {
                     .padding(.bottom, 32)
                 }
             }
+            .navigationBarHidden(true)
         }
     }
 }
 
 #Preview {
     WelcomeView()
+        .environmentObject(AuthenticationManager())
 }
 
