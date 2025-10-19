@@ -93,14 +93,21 @@ class AuthenticationManager: ObservableObject {
             
             // Check email verification
             if !authResult.user.isEmailVerified {
-                // Don't throw error - instead set flag to show verification screen
-                isEmailVerified = false
-                isAuthenticated = false
+                // Set authenticated but not verified - this triggers VerificationRequiredView
+                await MainActor.run {
+                    self.isAuthenticated = true
+                    self.isEmailVerified = false
+                }
+                // Fetch user data for display
                 currentUser = try await FirestoreService.shared.getUser(userId: authResult.user.uid)
                 return
             }
             
-            isEmailVerified = true
+            // Email is verified - proceed with login
+            await MainActor.run {
+                self.isEmailVerified = true
+                self.isAuthenticated = true
+            }
             
             // Update Firestore to sync emailVerified status
             try await FirestoreService.shared.updateUser(
