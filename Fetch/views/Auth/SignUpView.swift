@@ -36,6 +36,8 @@ struct SignUpView: View {
     @State private var isLoading = false
     @State private var showingSchoolPicker = false
     @State private var navigateToVerification = false
+    @State private var showSuccessAlert = false
+    @State private var navigateBack = false
     
     let schools = [
         "Select your school",
@@ -45,7 +47,11 @@ struct SignUpView: View {
     ]
     
     var body: some View {
-        ZStack {
+        if navigateBack {
+            WelcomeView()
+                .environmentObject(authManager)
+        } else {
+            ZStack {
                 Color(hex: "F2F2F7")
                     .ignoresSafeArea()
                 
@@ -323,6 +329,14 @@ struct SignUpView: View {
             .sheet(isPresented: $showingSchoolPicker) {
                 SchoolPickerView(selectedSchool: $selectedSchool, schools: schools)
             }
+            .alert("Account Created!", isPresented: $showSuccessAlert) {
+                Button("OK", role: .cancel) {
+                    navigateBack = true
+                }
+            } message: {
+                Text("Please check your email (\(email)) to verify your account before logging in.")
+            }
+        }
     }
     
     // MARK: - Validation
@@ -464,7 +478,12 @@ struct SignUpView: View {
                 
                 await MainActor.run {
                     isLoading = false
-                    navigateToVerification = true
+                    showSuccessAlert = true
+                    
+                    // Auto-dismiss after 2 seconds
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                        navigateBack = true
+                    }
                 }
             } catch {
                 await MainActor.run {
