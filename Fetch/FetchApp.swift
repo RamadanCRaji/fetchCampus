@@ -23,7 +23,7 @@ struct FetchApp: App {
             Group {
                 if authManager.isAuthenticated {
                     // User is logged in and verified - show main app
-                    HomeView()
+                    MainTabView()
                         .environmentObject(authManager)
                 } else if !authManager.isEmailVerified {
                     // User logged in but email not verified
