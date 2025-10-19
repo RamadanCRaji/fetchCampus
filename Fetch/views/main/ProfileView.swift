@@ -198,6 +198,31 @@ struct ProfileView: View {
                     }
                     .padding(.horizontal, 16)
                     
+                    // Sync Email Verification Button (Temporary Fix)
+                    Button(action: {
+                        Task {
+                            try? await authManager.syncEmailVerificationStatus()
+                        }
+                    }) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                                .font(.system(size: 16))
+                            Text("Sync Email Verification")
+                                .font(.system(size: 17, weight: .semibold))
+                        }
+                        .foregroundColor(Color(hex: "007AFF"))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(Color.white)
+                        .cornerRadius(12)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color(hex: "007AFF").opacity(0.3), lineWidth: 1)
+                        )
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                    
                     // Sign Out Button
                     Button(action: {
                         try? authManager.logout()

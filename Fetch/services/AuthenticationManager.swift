@@ -101,6 +101,13 @@ class AuthenticationManager: ObservableObject {
             }
             
             isEmailVerified = true
+            
+            // Update Firestore to sync emailVerified status
+            try await FirestoreService.shared.updateUser(
+                userId: authResult.user.uid,
+                data: ["emailVerified": true]
+            )
+            
             await fetchUserData(userId: authResult.user.uid)
         } catch {
             errorMessage = handleAuthError(error)
@@ -218,6 +225,14 @@ class AuthenticationManager: ObservableObject {
             // Reload user from Firebase to get latest verification status
             try await user.reload()
             
+            // If email is now verified, update Firestore
+            if user.isEmailVerified {
+                try await FirestoreService.shared.updateUser(
+                    userId: user.uid,
+                    data: ["emailVerified": true]
+                )
+            }
+            
             // Update verification state
             await MainActor.run {
                 self.isEmailVerified = user.isEmailVerified
@@ -232,6 +247,32 @@ class AuthenticationManager: ObservableObject {
             }
         } catch {
             print("Error checking verification status: \(error.localizedDescription)")
+        }
+    }
+    
+    // MARK: - Manual Sync Functions
+    
+    /// Manually sync email verification status from Firebase Auth to Firestore
+    /// Call this to fix existing accounts that verified email but Firestore wasn't updated
+    func syncEmailVerificationStatus() async throws {
+        guard let user = Auth.auth().currentUser else {
+            throw AuthError.noUser
+        }
+        
+        // Reload to get latest status
+        try await user.reload()
+        
+        // Update Firestore if verified
+        if user.isEmailVerified {
+            try await FirestoreService.shared.updateUser(
+                userId: user.uid,
+                data: ["emailVerified": true]
+            )
+            
+            await MainActor.run {
+                self.isEmailVerified = true
+                print("✅ Firestore emailVerified synced to true")
+            }
         }
     }
     
