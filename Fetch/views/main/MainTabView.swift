@@ -16,6 +16,7 @@ struct MainTabView: View {
                 
                 // Friends Tab
                 FriendsTabContent()
+                    .environmentObject(authManager)
                     .tag(1)
                 
                 // Leaderboard Tab
@@ -43,9 +44,9 @@ struct MainTabView: View {
 
 struct HomeTabContent: View {
     @EnvironmentObject var authManager: AuthenticationManager
-    @State private var activities: [Activity] = []
+    @State private var transactions: [Transaction] = []
     @State private var userListener: ListenerRegistration?
-    @State private var activityListener: ListenerRegistration?
+    @State private var transactionListener: ListenerRegistration?
     
     var body: some View {
         NavigationView {
@@ -133,8 +134,8 @@ struct HomeTabContent: View {
                                 .foregroundColor(.black)
                                 .padding(.horizontal, 16)
                             
-                            if activities.isEmpty {
-                                // Show sample activities from Figma
+                            if transactions.isEmpty {
+                                // Show sample activities from Figma (for demo purposes)
                                 VStack(spacing: 8) {
                                     SampleActivityCard(
                                         name: "Jake",
@@ -162,9 +163,13 @@ struct HomeTabContent: View {
                                 }
                                 .padding(.horizontal, 16)
                             } else {
+                                // Show real transactions from Firestore
                                 VStack(spacing: 8) {
-                                    ForEach(activities) { activity in
-                                        ActivityCard(activity: activity)
+                                    ForEach(transactions) { transaction in
+                                        TransactionCard(
+                                            transaction: transaction,
+                                            currentUserId: authManager.currentUser?.id ?? ""
+                                        )
                                     }
                                 }
                                 .padding(.horizontal, 16)
@@ -209,15 +214,15 @@ struct HomeTabContent: View {
             }
         }
         
-        // Listen to activity feed changes
-        activityListener = FirestoreService.shared.listenToActivities(userId: userId) { newActivities in
-            activities = newActivities
+        // Listen to transaction feed changes
+        transactionListener = FirestoreService.shared.listenToTransactions(userId: userId) { newTransactions in
+            transactions = newTransactions
         }
     }
     
     func cleanupListeners() {
         userListener?.remove()
-        activityListener?.remove()
+        transactionListener?.remove()
     }
 }
 
@@ -267,27 +272,273 @@ struct SampleActivityCard: View {
     }
 }
 
+// MARK: - Transaction Card (for real Firestore data)
+
+struct TransactionCard: View {
+    let transaction: Transaction
+    let currentUserId: String
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            // Avatar
+            Circle()
+                .fill(Color(hex: "007AFF").opacity(0.1))
+                .frame(width: 44, height: 44)
+                .overlay(
+                    Image(systemName: "person.fill")
+                        .foregroundColor(Color(hex: "007AFF"))
+                        .font(.system(size: 20))
+                )
+            
+            // Activity Text and Time
+            VStack(alignment: .leading, spacing: 4) {
+                Text(transaction.activityText(currentUserId: currentUserId))
+                    .font(.system(size: 15))
+                    .foregroundColor(.black)
+                
+                Text(transaction.timeAgo)
+                    .font(.system(size: 13))
+                    .foregroundColor(Color(hex: "8E8E93"))
+            }
+            
+            Spacer()
+            
+            // Points Value
+            Text(transaction.amountText(currentUserId: currentUserId))
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(transaction.amountColor(currentUserId: currentUserId))
+        }
+        .padding(16)
+        .background(Color.white)
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
+    }
+}
+
 // MARK: - Friends Tab Content
 
 struct FriendsTabContent: View {
+    @EnvironmentObject var authManager: AuthenticationManager
+    @State private var friends: [User] = []
+    @State private var isLoading = false
+    @State private var showAddFriend = false
+    
     var body: some View {
         NavigationView {
             ZStack {
                 Color(hex: "F2F2F7")
                     .ignoresSafeArea()
                 
-                VStack(spacing: 16) {
-                    Text("👥")
-                        .font(.system(size: 64))
-                    Text("Friends")
-                        .font(.system(size: 24, weight: .bold))
-                    Text("Coming soon...")
-                        .font(.system(size: 17))
-                        .foregroundColor(Color(hex: "8E8E93"))
+                if isLoading {
+                    ProgressView()
+                        .tint(Color(hex: "007AFF"))
+                } else if friends.isEmpty {
+                    // Empty State
+                    VStack(spacing: 20) {
+                        Text("👥")
+                            .font(.system(size: 80))
+                        
+                        Text("No Friends Yet")
+                            .font(.system(size: 24, weight: .bold))
+                            .foregroundColor(.black)
+                        
+                        Text("Add friends to start gifting points")
+                            .font(.system(size: 17))
+                            .foregroundColor(Color(hex: "8E8E93"))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 40)
+                        
+                        Button(action: { showAddFriend = true }) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "person.badge.plus.fill")
+                                Text("Add Friends")
+                            }
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(width: 200, height: 50)
+                            .background(Color(hex: "007AFF"))
+                            .cornerRadius(12)
+                            .shadow(color: .blue.opacity(0.2), radius: 8, y: 2)
+                        }
+                        .padding(.top, 16)
+                    }
+                } else {
+                    // Friends List
+                    ScrollView {
+                        VStack(spacing: 16) {
+                            // Friends Count Card
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Your Friends")
+                                        .font(.system(size: 15))
+                                        .foregroundColor(Color(hex: "8E8E93"))
+                                    Text("\(friends.count)")
+                                        .font(.system(size: 32, weight: .bold))
+                                        .foregroundColor(.black)
+                                }
+                                
+                                Spacer()
+                                
+                                Button(action: { showAddFriend = true }) {
+                                    Image(systemName: "person.badge.plus.fill")
+                                        .font(.system(size: 20))
+                                        .foregroundColor(Color(hex: "007AFF"))
+                                }
+                            }
+                            .padding(20)
+                            .background(Color.white)
+                            .cornerRadius(12)
+                            .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
+                            .padding(.horizontal, 16)
+                            .padding(.top, 8)
+                            
+                            // Friends List
+                            VStack(spacing: 8) {
+                                ForEach(friends) { friend in
+                                    FriendRow(friend: friend)
+                                }
+                            }
+                            .padding(.horizontal, 16)
+                            
+                            // Bottom spacing for tab bar
+                            Spacer()
+                                .frame(height: 80)
+                        }
+                    }
                 }
             }
             .navigationTitle("Friends")
             .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: { showAddFriend = true }) {
+                        Image(systemName: "person.badge.plus")
+                            .font(.system(size: 18))
+                            .foregroundColor(Color(hex: "007AFF"))
+                    }
+                }
+            }
+            .sheet(isPresented: $showAddFriend) {
+                AddFriendPlaceholderView()
+            }
+            .onAppear {
+                loadFriends()
+            }
+        }
+    }
+    
+    func loadFriends() {
+        guard let userId = authManager.currentUser?.id else { return }
+        
+        isLoading = true
+        
+        Task {
+            do {
+                let fetchedFriends = try await FirestoreService.shared.getFriends(userId: userId)
+                await MainActor.run {
+                    friends = fetchedFriends
+                    isLoading = false
+                }
+            } catch {
+                print("Error loading friends: \(error.localizedDescription)")
+                await MainActor.run {
+                    isLoading = false
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Friend Row Component
+
+struct FriendRow: View {
+    let friend: User
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            // Avatar
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [Color(hex: "007AFF"), Color(hex: "5856D6")],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 52, height: 52)
+                
+                Circle()
+                    .fill(Color(hex: "E3F2FD"))
+                    .frame(width: 48, height: 48)
+                
+                Text(String(friend.name.prefix(1)).uppercased())
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundColor(Color(hex: "007AFF"))
+            }
+            
+            // Friend Info
+            VStack(alignment: .leading, spacing: 4) {
+                Text(friend.name)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(.black)
+                
+                Text("@\(friend.username)")
+                    .font(.system(size: 15))
+                    .foregroundColor(Color(hex: "8E8E93"))
+            }
+            
+            Spacer()
+            
+            // Stats
+            VStack(alignment: .trailing, spacing: 4) {
+                HStack(spacing: 4) {
+                    Text("🎁")
+                        .font(.system(size: 14))
+                    Text("\(friend.giftsGiven)")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(Color(hex: "007AFF"))
+                }
+                
+                Text("\(friend.points) pts")
+                    .font(.system(size: 13))
+                    .foregroundColor(Color(hex: "8E8E93"))
+            }
+        }
+        .padding(16)
+        .background(Color.white)
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
+    }
+}
+
+// MARK: - Add Friend Placeholder
+
+struct AddFriendPlaceholderView: View {
+    @Environment(\.dismiss) var dismiss
+    
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 20) {
+                Text("🔍")
+                    .font(.system(size: 64))
+                Text("Add Friends")
+                    .font(.system(size: 24, weight: .bold))
+                Text("Search and add friends feature coming soon...")
+                    .font(.system(size: 17))
+                    .foregroundColor(Color(hex: "8E8E93"))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
+            }
+            .navigationTitle("Add Friends")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
         }
     }
 }
