@@ -19,8 +19,9 @@ struct MainTabView: View {
                     .environmentObject(authManager)
                     .tag(1)
                 
-                // Leaderboard Tab
-                LeaderboardTabContent()
+            // Leaderboard Tab
+            LeaderboardView()
+                .environmentObject(authManager)
                     .tag(2)
                 
                 // Profile Tab
@@ -47,6 +48,7 @@ struct HomeTabContent: View {
     @State private var transactions: [Transaction] = []
     @State private var userListener: ListenerRegistration?
     @State private var transactionListener: ListenerRegistration?
+    @State private var showGiftPoints = false
     
     var body: some View {
         NavigationView {
@@ -86,7 +88,7 @@ struct HomeTabContent: View {
                         HStack(spacing: 8) {
                             // Gift Button (60% width)
                             Button(action: {
-                                // Navigate to gift view
+                                showGiftPoints = true
                             }) {
                                 HStack(spacing: 8) {
                                     Text("🎁")
@@ -194,6 +196,10 @@ struct HomeTabContent: View {
                             .font(.system(size: 22))
                     }
                 }
+            }
+            .sheet(isPresented: $showGiftPoints) {
+                GiftPointsView()
+                    .environmentObject(authManager)
             }
         }
         .onAppear {
@@ -419,7 +425,8 @@ struct FriendsTabContent: View {
                 }
             }
             .sheet(isPresented: $showAddFriend) {
-                AddFriendPlaceholderView()
+                AddFriendView()
+                    .environmentObject(authManager)
             }
             .onAppear {
                 loadFriends()
@@ -509,62 +516,6 @@ struct FriendRow: View {
         .background(Color.white)
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
-    }
-}
-
-// MARK: - Add Friend Placeholder
-
-struct AddFriendPlaceholderView: View {
-    @Environment(\.dismiss) var dismiss
-    
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 20) {
-                Text("🔍")
-                    .font(.system(size: 64))
-                Text("Add Friends")
-                    .font(.system(size: 24, weight: .bold))
-                Text("Search and add friends feature coming soon...")
-                    .font(.system(size: 17))
-                    .foregroundColor(Color(hex: "8E8E93"))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 40)
-            }
-            .navigationTitle("Add Friends")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                }
-            }
-        }
-    }
-}
-
-// MARK: - Leaderboard Tab Content
-
-struct LeaderboardTabContent: View {
-    var body: some View {
-        NavigationView {
-            ZStack {
-                Color(hex: "F2F2F7")
-                    .ignoresSafeArea()
-                
-                VStack(spacing: 16) {
-                    Text("📊")
-                        .font(.system(size: 64))
-                    Text("Leaderboard")
-                        .font(.system(size: 24, weight: .bold))
-                    Text("Coming soon...")
-                        .font(.system(size: 17))
-                        .foregroundColor(Color(hex: "8E8E93"))
-                }
-            }
-            .navigationTitle("Leaderboard")
-            .navigationBarTitleDisplayMode(.large)
-        }
     }
 }
 
