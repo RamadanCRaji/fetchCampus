@@ -246,6 +246,31 @@ struct ProfileView: View {
                     .padding(.horizontal, 16)
                     .padding(.top, 8)
                     
+                    // Delete Account Button (Testing Only)
+                    Button(action: {
+                        Task {
+                            do {
+                                try await authManager.deleteAccount()
+                            } catch {
+                                print("Error deleting account: \(error)")
+                            }
+                        }
+                    }) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "trash")
+                                .font(.system(size: 16))
+                            Text("Delete Account (Testing)")
+                                .font(.system(size: 15, weight: .semibold))
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                        .background(Color.red)
+                        .cornerRadius(12)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 4)
+                    
                     // Bottom spacing for tab bar
                     Spacer()
                         .frame(height: 80)

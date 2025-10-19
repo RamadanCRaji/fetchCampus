@@ -276,6 +276,34 @@ class AuthenticationManager: ObservableObject {
         }
     }
     
+    /// Delete current user account completely (Auth + Firestore)
+    /// WARNING: This is permanent and cannot be undone!
+    /// Use only for testing or user-requested account deletion
+    func deleteAccount() async throws {
+        guard let user = Auth.auth().currentUser else {
+            throw AuthError.noUser
+        }
+        
+        let userId = user.uid
+        
+        // Delete Firestore document first
+        try await Firestore.firestore()
+            .collection("users")
+            .document(userId)
+            .delete()
+        
+        // Delete Firebase Auth account
+        try await user.delete()
+        
+        // Clear local state
+        await MainActor.run {
+            self.currentUser = nil
+            self.isAuthenticated = false
+            self.isEmailVerified = true
+            print("✅ Account deleted successfully")
+        }
+    }
+    
     // MARK: - Helper Functions
     private func checkUserExists(userId: String) async throws -> Bool {
         let document = try await Firestore.firestore()
