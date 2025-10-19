@@ -21,11 +21,11 @@ struct FetchApp: App {
     var body: some Scene {
         WindowGroup {
             Group {
-                if authManager.isAuthenticated {
+                if authManager.isAuthenticated && authManager.isEmailVerified {
                     // User is logged in and verified - show main app
                     MainTabView()
                         .environmentObject(authManager)
-                } else if !authManager.isEmailVerified {
+                } else if authManager.isAuthenticated && !authManager.isEmailVerified {
                     // User logged in but email not verified
                     VerificationRequiredView(userEmail: authManager.userEmail ?? "")
                         .environmentObject(authManager)
