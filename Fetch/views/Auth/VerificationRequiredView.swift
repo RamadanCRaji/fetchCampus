@@ -187,10 +187,14 @@ struct VerificationRequiredView: View {
             }
         }
         .onAppear {
-            // Check verification status every 3 seconds
-            checkTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { _ in
-                Task {
-                    await authManager.checkEmailVerificationStatus()
+            // Wait 5 seconds before starting auto-check to avoid Firebase Auth race condition
+            // This gives Firebase time to properly set emailVerified = false
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+                // Check verification status every 5 seconds (not too aggressive)
+                checkTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { _ in
+                    Task {
+                        await authManager.checkEmailVerificationStatus()
+                    }
                 }
             }
         }

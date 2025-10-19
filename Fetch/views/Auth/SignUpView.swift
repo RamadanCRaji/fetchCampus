@@ -478,12 +478,9 @@ struct SignUpView: View {
                 
                 await MainActor.run {
                     isLoading = false
-                    showSuccessAlert = true
-                    
-                    // Auto-dismiss after 2 seconds
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                        navigateBack = true
-                    }
+                    // Don't show alert or navigate back
+                    // FetchApp will automatically show VerificationRequiredView
+                    // because isAuthenticated = true and isEmailVerified = false
                 }
             } catch {
                 await MainActor.run {

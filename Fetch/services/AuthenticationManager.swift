@@ -60,6 +60,16 @@ class AuthenticationManager: ObservableObject {
                 .collection("users")
                 .document(authResult.user.uid)
                 .setData(data)
+            
+            // Set authenticated state so user sees VerificationRequiredView
+            await MainActor.run {
+                self.userEmail = authResult.user.email
+                self.isAuthenticated = true
+                self.isEmailVerified = false
+            }
+            
+            // Fetch user data for display
+            await fetchUserData(userId: authResult.user.uid)
         } catch {
             errorMessage = handleAuthError(error)
             throw error
@@ -232,24 +242,35 @@ class AuthenticationManager: ObservableObject {
             // Reload user from Firebase to get latest verification status
             try await user.reload()
             
-            // If email is now verified, update Firestore
-            if user.isEmailVerified {
+            // Double-check: Fetch Firestore document to see when account was created
+            let firestoreUser = try await FirestoreService.shared.getUser(userId: user.uid)
+            let accountAge = Date().timeIntervalSince(firestoreUser.createdAt.dateValue())
+            
+            // Safety check: If account is less than 10 seconds old, probably a race condition
+            // Ignore "verified" status unless account is at least 10 seconds old
+            let isReallyVerified = user.isEmailVerified && accountAge > 10
+            
+            // If email is now verified (and not a false positive), update Firestore
+            if isReallyVerified {
                 try await FirestoreService.shared.updateUser(
                     userId: user.uid,
                     data: ["emailVerified": true]
                 )
-            }
-            
-            // Update verification state
-            await MainActor.run {
-                self.isEmailVerified = user.isEmailVerified
                 
-                // If now verified, fetch user data and navigate to home
-                if user.isEmailVerified {
+                // Update verification state
+                await MainActor.run {
+                    self.isEmailVerified = true
+                    
+                    // Fetch user data and navigate to home
                     Task {
                         await self.fetchUserData(userId: user.uid)
                         self.isAuthenticated = true
                     }
+                }
+            } else {
+                // Still not verified
+                await MainActor.run {
+                    self.isEmailVerified = false
                 }
             }
         } catch {
