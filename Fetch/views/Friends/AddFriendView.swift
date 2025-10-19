@@ -12,8 +12,15 @@ struct AddFriendView: View {
     @State private var searchText = ""
     @State private var searchResults: [User] = []
     @State private var isSearching = false
-    @State private var sentRequests: Set<String> = [] // Track sent requests
+    @State private var friendshipStatuses: [String: FriendStatus] = [:] // userId: status
     @State private var errorMessage: String?
+    
+    // Debounce timer
+    @State private var searchTask: Task<Void, Never>?
+    
+    var currentUserId: String? {
+        authManager.currentUser?.id
+    }
     
     var body: some View {
         NavigationStack {
@@ -28,13 +35,23 @@ struct AddFriendView: View {
                             .foregroundColor(Color(hex: "8E8E93"))
                             .font(.system(size: 18))
                         
-                        TextField("Search by username...", text: $searchText)
+                        TextField("Search by name or username...", text: $searchText)
                             .font(.system(size: 17))
                             .foregroundColor(.black)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
                             .onChange(of: searchText) { oldValue, newValue in
-                                performSearch(query: newValue)
+                                // Cancel previous search
+                                searchTask?.cancel()
+                                
+                                // Debounce: wait 0.5s after typing stops
+                                searchTask = Task {
+                                    try? await Task.sleep(nanoseconds: 500_000_000)
+                                    
+                                    if !Task.isCancelled {
+                                        await performSearch(query: newValue)
+                                    }
+                                }
                             }
                         
                         if !searchText.isEmpty {
@@ -94,8 +111,7 @@ struct AddFriendView: View {
                                 ForEach(searchResults) { user in
                                     UserSearchRow(
                                         user: user,
-                                        currentUserId: authManager.currentUser?.id ?? "",
-                                        requestSent: sentRequests.contains(user.id ?? ""),
+                                        status: friendshipStatuses[user.id ?? ""] ?? .none,
                                         onAddFriend: {
                                             sendFriendRequest(to: user)
                                         }
@@ -134,30 +150,68 @@ struct AddFriendView: View {
     
     // MARK: - Search Logic
     
-    func performSearch(query: String) {
+    func performSearch(query: String) async {
         guard !query.isEmpty, query.count >= 2 else {
-            searchResults = []
+            await MainActor.run {
+                searchResults = []
+            }
             return
         }
         
-        isSearching = true
-        errorMessage = nil
+        await MainActor.run {
+            isSearching = true
+            errorMessage = nil
+        }
         
-        Task {
-            do {
-                let results = try await FirestoreService.shared.searchUsers(query: query)
-                
-                await MainActor.run {
-                    // Filter out current user
-                    searchResults = results.filter { $0.id != authManager.currentUser?.id }
-                    isSearching = false
-                }
-            } catch {
-                await MainActor.run {
-                    errorMessage = "Search failed. Please try again."
-                    isSearching = false
+        do {
+            // Search users
+            let users = try await FirestoreService.shared.searchUsers(query: query)
+            
+            // Filter out current user
+            let filteredUsers = users.filter { $0.id != currentUserId }
+            
+            // Load friendship statuses for all results
+            for user in filteredUsers {
+                if let userId = user.id, let currentUserId = currentUserId {
+                    let status = await getFriendshipStatus(between: currentUserId, and: userId)
+                    await MainActor.run {
+                        friendshipStatuses[userId] = status
+                    }
                 }
             }
+            
+            await MainActor.run {
+                searchResults = filteredUsers
+                isSearching = false
+            }
+        } catch {
+            await MainActor.run {
+                errorMessage = "Search failed: \(error.localizedDescription)"
+                searchResults = []
+                isSearching = false
+            }
+        }
+    }
+    
+    func getFriendshipStatus(between userId1: String, userId2: String) async -> FriendStatus {
+        do {
+            // Get the friendship document if it exists
+            if let friendship = try await FirestoreService.shared.getFriendship(userId1: userId1, userId2: userId2) {
+                // Map Firestore FriendshipStatus to our display FriendStatus
+                switch friendship.status {
+                case .pending:
+                    return .pending
+                case .accepted:
+                    return .friends
+                case .blocked:
+                    return .blocked
+                }
+            }
+            
+            // No friendship document exists
+            return .none
+        } catch {
+            return .none
         }
     }
     
@@ -170,24 +224,33 @@ struct AddFriendView: View {
                 try await FirestoreService.shared.sendFriendRequest(from: currentUserId, to: receiverId)
                 
                 await MainActor.run {
-                    sentRequests.insert(receiverId)
+                    // Update status to pending
+                    friendshipStatuses[receiverId] = .pending
                     errorMessage = nil
                 }
             } catch {
                 await MainActor.run {
-                    errorMessage = "Failed to send request. Please try again."
+                    errorMessage = "Failed to send request: \(error.localizedDescription)"
                 }
             }
         }
     }
 }
 
+// MARK: - Friend Status Enum (for UI display)
+
+enum FriendStatus {
+    case none       // Not friends, no pending request
+    case pending    // Friend request pending
+    case friends    // Already friends
+    case blocked    // User is blocked
+}
+
 // MARK: - User Search Row
 
 struct UserSearchRow: View {
     let user: User
-    let currentUserId: String
-    let requestSent: Bool
+    let status: FriendStatus
     let onAddFriend: () -> Void
     
     var body: some View {
@@ -230,39 +293,53 @@ struct UserSearchRow: View {
             
             Spacer()
             
-            // Add button
-            if requestSent {
-                HStack(spacing: 4) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 16))
-                    Text("Sent")
-                        .font(.system(size: 15, weight: .semibold))
+            // Status Button
+            Button(action: {
+                if status == .none {
+                    onAddFriend()
                 }
-                .foregroundColor(Color(hex: "34C759"))
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(Color(hex: "34C759").opacity(0.1))
-                .cornerRadius(20)
-            } else {
-                Button(action: onAddFriend) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "person.badge.plus")
-                            .font(.system(size: 14))
-                        Text("Add")
-                            .font(.system(size: 15, weight: .semibold))
-                    }
-                    .foregroundColor(.white)
+            }) {
+                Text(statusButtonText)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(statusButtonColor)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
-                    .background(Color(hex: "007AFF"))
+                    .background(statusButtonBackground)
                     .cornerRadius(20)
-                }
             }
+            .disabled(status != .none)
         }
         .padding(12)
         .background(Color.white)
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
+    }
+    
+    var statusButtonText: String {
+        switch status {
+        case .none: return "Add"
+        case .pending: return "Pending"
+        case .friends: return "Friends"
+        case .blocked: return "Blocked"
+        }
+    }
+    
+    var statusButtonColor: Color {
+        switch status {
+        case .none: return .white
+        case .pending: return Color(hex: "8E8E93")
+        case .friends: return Color(hex: "34C759")
+        case .blocked: return Color(hex: "FF3B30")
+        }
+    }
+    
+    var statusButtonBackground: Color {
+        switch status {
+        case .none: return Color(hex: "007AFF")
+        case .pending: return Color(hex: "F2F2F7")
+        case .friends: return Color(hex: "E8F5E9")
+        case .blocked: return Color(hex: "FFE5E5")
+        }
     }
 }
 

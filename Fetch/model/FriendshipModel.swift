@@ -6,6 +6,12 @@
 import Foundation
 import FirebaseFirestore
 
+enum FriendshipStatus: String, Codable {
+    case pending
+    case accepted
+    case blocked
+}
+
 struct Friendship: Codable, Identifiable {
     @DocumentID var id: String?
     
@@ -45,10 +51,3 @@ struct Friendship: Codable, Identifiable {
         return userId1 == currentUserId ? user2Username : user1Username
     }
 }
-
-enum FriendshipStatus: String, Codable {
-    case pending
-    case accepted
-    case blocked
-}
-

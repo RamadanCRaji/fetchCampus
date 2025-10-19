@@ -101,10 +101,10 @@ class FirestoreService {
         let friendship = Friendship(
             userId1: sortedIds[0],
             userId2: sortedIds[1],
-            status: .pending,
+            status: FriendshipStatus.pending,
             initiatedBy: senderId,
             createdAt: Timestamp(),
-            acceptedAt: nil,
+            acceptedAt: Optional<Timestamp>.none,
             user1Name: sortedIds[0] == senderId ? sender.name : receiver.name,
             user2Name: sortedIds[1] == senderId ? sender.name : receiver.name,
             user1Username: sortedIds[0] == senderId ? sender.username : receiver.username,
@@ -145,6 +145,18 @@ class FirestoreService {
             relatedUserId: acceptedBy,
             relatedFriendshipId: friendshipId
         )
+    }
+    
+    func hasPendingFriendRequest(from senderId: String, to receiverId: String) async throws -> Bool {
+        let sortedIds = [senderId, receiverId].sorted()
+        
+        let snapshot = try await db.collection("friendships")
+            .whereField("userId1", isEqualTo: sortedIds[0])
+            .whereField("userId2", isEqualTo: sortedIds[1])
+            .whereField("status", isEqualTo: "pending")
+            .getDocuments()
+        
+        return !snapshot.documents.isEmpty
     }
     
     func getFriendship(userId1: String, userId2: String) async throws -> Friendship? {
