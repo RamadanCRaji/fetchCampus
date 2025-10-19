@@ -51,19 +51,53 @@ struct VerificationRequiredView: View {
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 300)
                 
-                // Link Expiration Notice
-                VStack(spacing: 8) {
-                    Text("⏰ Links expire after 1 hour")
-                        .font(.system(size: 13))
-                        .foregroundColor(Color(hex: "FF9500"))
+                // Important Notice Card
+                VStack(spacing: 12) {
+                    HStack(spacing: 8) {
+                        Text("ℹ️")
+                            .font(.system(size: 20))
+                        Text("Important")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(Color(hex: "007AFF"))
+                        Spacer()
+                    }
                     
-                    Text("❓ See 'expired' error? The link may have worked! Tap 'I've Verified' below to check.")
-                        .font(.system(size: 12))
-                        .foregroundColor(Color(hex: "8E8E93"))
-                        .multilineTextAlignment(.center)
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(alignment: .top, spacing: 8) {
+                            Text("1.")
+                                .font(.system(size: 13, weight: .semibold))
+                            Text("Click the verification link in your email")
+                                .font(.system(size: 13))
+                                .foregroundColor(Color(hex: "3C3C43"))
+                        }
+                        
+                        HStack(alignment: .top, spacing: 8) {
+                            Text("2.")
+                                .font(.system(size: 13, weight: .semibold))
+                            Text("If you see an error page, that's normal! Close it and come back here")
+                                .font(.system(size: 13))
+                                .foregroundColor(Color(hex: "3C3C43"))
+                        }
+                        
+                        HStack(alignment: .top, spacing: 8) {
+                            Text("3.")
+                                .font(.system(size: 13, weight: .semibold))
+                            Text("Tap 'I've Verified My Email' below")
+                                .font(.system(size: 13))
+                                .foregroundColor(Color(hex: "3C3C43"))
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .padding(.horizontal, 40)
-                .padding(.top, 8)
+                .padding(16)
+                .background(Color(hex: "F0F9FF"))
+                .cornerRadius(12)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color(hex: "007AFF").opacity(0.2), lineWidth: 1)
+                )
+                .padding(.horizontal, 24)
+                .padding(.top, 12)
                 
                 // Success Message
                 if showSuccess {
