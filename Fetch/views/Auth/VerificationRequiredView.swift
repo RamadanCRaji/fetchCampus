@@ -50,6 +50,14 @@ struct VerificationRequiredView: View {
                     .foregroundColor(Color(hex: "8E8E93"))
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 300)
+                
+                // Link Expiration Notice
+                Text("⏰ Links expire after 1 hour - use Resend if needed")
+                    .font(.system(size: 13))
+                    .foregroundColor(Color(hex: "FF9500"))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
+                    .padding(.top, 4)
                     .padding(.top, 8)
                 
                 // Success Message
