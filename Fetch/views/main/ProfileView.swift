@@ -3,6 +3,7 @@ import SwiftUI
 struct ProfileView: View {
     @EnvironmentObject var authManager: AuthenticationManager
     @State private var showEditProfile = false
+    @State private var showSettings = false
     
     var user: User? {
         authManager.currentUser
@@ -229,8 +230,21 @@ struct ProfileView: View {
             .background(Color(hex: "F2F2F7"))
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: { showSettings = true }) {
+                        Image(systemName: "gearshape")
+                            .font(.system(size: 20))
+                            .foregroundColor(Color(hex: "007AFF"))
+                    }
+                }
+            }
             .sheet(isPresented: $showEditProfile) {
                 EditProfileView()
+                    .environmentObject(authManager)
+            }
+            .sheet(isPresented: $showSettings) {
+                SettingsView()
                     .environmentObject(authManager)
             }
         }

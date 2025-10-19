@@ -49,6 +49,8 @@ struct HomeTabContent: View {
     @State private var userListener: ListenerRegistration?
     @State private var transactionListener: ListenerRegistration?
     @State private var showGiftPoints = false
+    @State private var showNotifications = false
+    @State private var unreadCount = 0
     
     var body: some View {
         NavigationView {
@@ -190,10 +192,26 @@ struct HomeTabContent: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
-                        // Navigate to notifications
+                        showNotifications = true
                     }) {
-                        Text("🔔")
-                            .font(.system(size: 22))
+                        ZStack(alignment: .topTrailing) {
+                            Image(systemName: "bell.fill")
+                                .font(.system(size: 20))
+                                .foregroundColor(Color(hex: "007AFF"))
+                            
+                            if unreadCount > 0 {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.red)
+                                        .frame(width: 18, height: 18)
+                                    
+                                    Text("\(min(unreadCount, 9))")
+                                        .font(.system(size: 11, weight: .bold))
+                                        .foregroundColor(.white)
+                                }
+                                .offset(x: 8, y: -8)
+                            }
+                        }
                     }
                 }
             }
@@ -201,9 +219,14 @@ struct HomeTabContent: View {
                 GiftPointsView()
                     .environmentObject(authManager)
             }
+            .sheet(isPresented: $showNotifications) {
+                NotificationsView()
+                    .environmentObject(authManager)
+            }
         }
         .onAppear {
             setupListeners()
+            loadUnreadCount()
         }
         .onDisappear {
             cleanupListeners()
@@ -229,6 +252,21 @@ struct HomeTabContent: View {
     func cleanupListeners() {
         userListener?.remove()
         transactionListener?.remove()
+    }
+    
+    func loadUnreadCount() {
+        guard let userId = authManager.currentUser?.id else { return }
+        
+        Task {
+            do {
+                let count = try await FirestoreService.shared.getUnreadCount(userId: userId)
+                await MainActor.run {
+                    unreadCount = count
+                }
+            } catch {
+                print("Error loading unread count: \(error.localizedDescription)")
+            }
+        }
     }
 }
 
