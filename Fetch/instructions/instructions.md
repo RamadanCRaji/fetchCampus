@@ -1,736 +1,1206 @@
-# 🎨 UI FIXES - MATCH FIGMA DESIGNS EXACTLY
+🏗️ FETCH CAMPUS - COMPLETE BUILD GUIDE
 
-## Issue 1: Bottom Tab Bar Icons Are Too Small
+## 📊 DATABASE SCHEMA DESIGN
 
-**PROBLEM:**
-The tab bar icons at the bottom are TINY (look like dots) instead of proper sized icons.
+### Overview
 
-**COMPARISON:**
+Fetch Campus uses Firebase Firestore with the following collections:
 
--  **Figma Design:** Icons are 26pt, clearly visible
--  **Current App:** Icons appear to be ~12-14pt, barely visible
-
-**FIX REQUIRED:**
-
-````swift
-FILE: Create a new file - views/Components/CustomTabBar.swift
-
-Build a custom tab bar that matches Figma exactly.
-
-DESIGN SPECS FROM FIGMA:
-
-Tab Bar Container:
-- Height: 80pt (includes safe area)
-- Background: White with blur effect
-- Top border: 0.5pt, color #E5E5EA
-- Shadow: 0 -2px 8px rgba(0,0,0,0.05)
-
-Each Tab Item:
-- Icon size: 26pt x 26pt
-- Label: 11pt, regular weight
-- Spacing between icon and label: 4pt
-- Active color: #007AFF (blue)
-- Inactive color: #8E8E93 (gray)
-- Vertical padding: 8pt top, 4pt bottom
-
-4 Tabs (left to right):
-1. Home
-   - Active icon: 🏠 (filled house emoji or SF Symbol "house.fill")
-   - Inactive icon: 🏠 (outlined house or "house")
-   - Label: "Home"
-
-2. Friends
-   - Active icon: 👥 (filled people emoji or SF Symbol "person.2.fill")
-   - Inactive icon: 👥 (outlined or "person.2")
-   - Label: "Friends"
-
-3. Leaderboard
-   - Active icon: 📊 (filled chart emoji or SF Symbol "chart.bar.fill")
-   - Inactive icon: 📊 (outlined or "chart.bar")
-   - Label: "Leaderboard"
-
-4. You (Profile)
-   - Active icon: 👤 (filled person emoji or SF Symbol "person.fill")
-   - Inactive icon: 👤 (outlined or "person")
-   - Label: "You"
-
-IMPLEMENTATION:
-```swift
-import SwiftUI
-
-struct CustomTabBar: View {
-    @Binding var selectedTab: Int
-
-    var body: some View {
-        VStack(spacing: 0) {
-            // Top border
-            Rectangle()
-                .fill(Color(hex: "E5E5EA"))
-                .frame(height: 0.5)
-
-            HStack(spacing: 0) {
-                // Home Tab
-                TabBarItem(
-                    icon: "house.fill",
-                    title: "Home",
-                    isSelected: selectedTab == 0,
-                    action: { selectedTab = 0 }
-                )
-
-                // Friends Tab
-                TabBarItem(
-                    icon: "person.2.fill",
-                    title: "Friends",
-                    isSelected: selectedTab == 1,
-                    action: { selectedTab = 1 }
-                )
-
-                // Leaderboard Tab
-                TabBarItem(
-                    icon: "chart.bar.fill",
-                    title: "Leaderboard",
-                    isSelected: selectedTab == 2,
-                    action: { selectedTab = 2 }
-                )
-
-                // Profile Tab
-                TabBarItem(
-                    icon: "person.fill",
-                    title: "You",
-                    isSelected: selectedTab == 3,
-                    action: { selectedTab = 3 }
-                )
-            }
-            .frame(height: 60)
-            .background(.ultraThinMaterial)
-        }
-        .shadow(color: .black.opacity(0.05), radius: 8, y: -2)
-    }
-}
-
-struct TabBarItem: View {
-    let icon: String
-    let title: String
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.system(size: 26))
-                    .frame(height: 26)
-
-                Text(title)
-                    .font(.system(size: 11, weight: .regular))
-            }
-            .foregroundColor(isSelected ? Color(hex: "007AFF") : Color(hex: "8E8E93"))
-            .frame(maxWidth: .infinity)
-        }
-    }
-}
 ```
-
-USAGE in FetchApp.swift or MainTabView.swift:
-```swift
-@State private var selectedTab = 0
-
-var body: some View {
-    ZStack {
-        // Content
-        TabView(selection: $selectedTab) {
-            HomeView()
-                .tag(0)
-
-            FriendsView()
-                .tag(1)
-
-            LeaderboardView()
-                .tag(2)
-
-            ProfileView()
-                .tag(3)
-        }
-        .tabViewStyle(.page(indexDisplayMode: .never))
-
-        // Custom tab bar overlay
-        VStack {
-            Spacer()
-            CustomTabBar(selectedTab: $selectedTab)
-        }
-        .ignoresSafeArea(edges: .bottom)
-    }
-}
+Firestore Database
+├── users/                    (Main user profiles)
+├── friendships/              (Friend relationships)
+├── transactions/             (Point transfers/gifts)
+├── notifications/            (User notifications)
+└── leaderboard_cache/        (Pre-calculated leaderboard data)
 ```
-
-OR simpler approach - just increase icon size in existing TabView:
-```swift
-.tabItem {
-    Image(systemName: "house.fill")
-        .environment(\.symbolVariants, selectedTab == 0 ? .fill : .none)
-        .font(.system(size: 26)) // ← ADD THIS
-    Text("Home")
-        .font(.system(size: 11)) // ← ADD THIS
-}
-```
-````
 
 ---
 
-## Issue 2: HomeView UI Doesn't Match Figma
+### Collection 1: `users/`
 
-**DIFFERENCES FOUND:**
+**Purpose:** Store all user profile information
 
-Comparing actual app (Image 1) to Figma (Image 2):
+**Document ID:** Firebase Auth UID
 
-1. **Activity Section - Empty State**
+**Schema:**
 
-   -  ✅ Currently shows: "No activity yet" with party emoji
-   -  ❌ Should show: Activity cards (Jake, Emma, Tyler examples)
-   -  FIX: Use placeholder/sample data until real transactions exist
-
-2. **Points Card Styling**
-
-   -  Current: Good match
-   -  Potential improvement: Verify corner radius is exactly 14pt
-   -  Verify shadow matches: `shadowColor: .black.opacity(0.08), radius: 8, y: 2`
-
-3. **Button Sizing**
-   -  Current: Good
-   -  Verify Gift button is exactly 60% width, Invite is 40%
-
-**FIX:**
-
-````swift
-FILE: views/Main/HomeView.swift
-
-UPDATES NEEDED:
-
-1. ADD SAMPLE ACTIVITY DATA (for demo/testing):
 ```swift
-// At top of HomeView
-let sampleActivities = [
-    Activity(
-        id: "1",
-        userId: "current_user",
-        type: .received,
-        fromUserId: "jake_id",
-        fromName: "Jake",
-        amount: 200,
-        message: "accepted your gift",
-        timestamp: Timestamp(date: Date().addingTimeInterval(-120))
-    ),
-    Activity(
-        id: "2",
-        userId: "current_user",
-        type: .sent,
-        toUserId: "emma_id",
-        toName: "Emma",
-        amount: 150,
-        timestamp: Timestamp(date: Date().addingTimeInterval(-3600))
-    ),
-    Activity(
-        id: "3",
-        userId: "current_user",
-        type: .received,
-        fromUserId: "tyler_id",
-        fromName: "Tyler",
-        amount: 100,
-        timestamp: Timestamp(date: Date().addingTimeInterval(-10800))
-    )
-]
+struct User: Codable, Identifiable {
+    @DocumentID var id: String?
+
+    // Profile
+    var name: String                   // "Madison Chen"
+    var username: String               // "madisonc" (unique, indexed)
+    var email: String                  // "madison@wisc.edu"
+    var studentId: String              // "9081234567" (unique, indexed)
+    var school: String                 // "University of Wisconsin-Madison"
+
+    // Points & Stats
+    var points: Int                    // Current balance (default: 500)
+    var totalPointsEarned: Int         // Lifetime earned (default: 500)
+    var totalPointsGifted: Int         // Lifetime given (default: 0)
+    var giftsGiven: Int                // Count of gifts sent (default: 0)
+    var giftsReceived: Int             // Count of gifts received (default: 0)
+
+    // Ranking
+    var rank: Int                      // Current rank position
+    var generosityLevel: String        // "Newbie", "Helper", "Giver", etc.
+    var generosityScore: Int           // 0-100 (based on gifts given)
+
+    // Metadata
+    var createdAt: Timestamp           // Account creation
+    var emailVerified: Bool            // Verification status
+    var profileImageUrl: String?       // Optional photo URL
+    var lastActive: Timestamp          // Last activity
+    var achievements: [String]         // Achievement IDs
+    var isPrivate: Bool                // Profile visibility
+}
 ```
 
-2. UPDATE ACTIVITY SECTION to show sample data:
-```swift
-// Activity Section
-VStack(alignment: .leading, spacing: 16) {
-    Text("Activity")
-        .font(.system(size: 22, weight: .bold))
-        .foregroundColor(.black)
-        .padding(.horizontal, 16)
+**Firestore Indexes Required:**
 
-    // Show sample activities (replace with real data when available)
-    if sampleActivities.isEmpty {
-        // Empty state
-        VStack(spacing: 16) {
-            Text("🎉")
-                .font(.system(size: 64))
-            Text("No activity yet")
-                .font(.system(size: 17, weight: .semibold))
-            Text("Start gifting points to see your activity here")
-                .font(.system(size: 15))
-                .foregroundColor(Color(hex: "8E8E93"))
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 40)
-        .background(Color.white)
-        .cornerRadius(12)
-        .padding(.horizontal, 16)
-    } else {
-        ForEach(sampleActivities) { activity in
-            ActivityRow(activity: activity)
-                .padding(.horizontal, 16)
-        }
+-  Single field: `username` (Ascending) - for search & uniqueness
+-  Single field: `studentId` (Ascending) - for uniqueness check
+-  Single field: `points` (Descending) - for leaderboard
+-  Single field: `totalPointsGifted` (Descending) - for ranking
+
+**Security Rules:**
+
+```
+match /users/{userId} {
+  allow read: if request.auth != null;
+  allow create: if request.auth != null && request.auth.uid == userId;
+  allow update: if request.auth != null && request.auth.uid == userId &&
+                !request.resource.data.diff(resource.data).affectedKeys()
+                  .hasAny(['points', 'rank']);
+  allow delete: if false;
+}
+```
+
+---
+
+### Collection 2: `friendships/`
+
+**Purpose:** Store friend relationships
+
+**Document ID:** Auto-generated
+
+**Schema:**
+
+```swift
+struct Friendship: Codable, Identifiable {
+    @DocumentID var id: String?
+
+    var userId1: String                // First user (alphabetically)
+    var userId2: String                // Second user (alphabetically)
+    var status: String                 // "pending", "accepted", "blocked"
+    var initiatedBy: String            // Who sent request
+    var createdAt: Timestamp           // When created
+    var acceptedAt: Timestamp?         // When accepted (nil if pending)
+
+    // Cached data for performance
+    var user1Name: String
+    var user2Name: String
+    var user1Username: String
+    var user2Username: String
+}
+
+enum FriendshipStatus: String, Codable {
+    case pending
+    case accepted
+    case blocked
+}
+```
+
+**Why userId1/userId2 alphabetically?**
+
+-  Prevents duplicates (A→B vs B→A)
+-  Simpler queries
+
+**Firestore Indexes Required:**
+
+-  Composite: `userId1` (Ascending) + `status` (Ascending)
+-  Composite: `userId2` (Ascending) + `status` (Ascending)
+
+**Security Rules:**
+
+```
+match /friendships/{friendshipId} {
+  allow read: if request.auth != null &&
+              (resource.data.userId1 == request.auth.uid ||
+               resource.data.userId2 == request.auth.uid);
+  allow create: if request.auth != null &&
+                (request.resource.data.userId1 == request.auth.uid ||
+                 request.resource.data.userId2 == request.auth.uid);
+  allow update: if request.auth != null &&
+                (resource.data.userId1 == request.auth.uid ||
+                 resource.data.userId2 == request.auth.uid);
+  allow delete: if request.auth != null &&
+                (resource.data.userId1 == request.auth.uid ||
+                 resource.data.userId2 == request.auth.uid);
+}
+```
+
+---
+
+### Collection 3: `transactions/`
+
+**Purpose:** Record all point transfers
+
+**Document ID:** Auto-generated
+
+**Schema:**
+
+```swift
+struct Transaction: Codable, Identifiable {
+    @DocumentID var id: String?
+
+    var type: String                   // "gift", "bonus", "earned", "penalty"
+    var fromUserId: String?            // Sender (nil for bonuses)
+    var toUserId: String               // Receiver
+    var amount: Int                    // Points (always positive)
+    var message: String?               // Optional message
+    var status: String                 // "pending", "completed", "failed"
+    var createdAt: Timestamp
+    var completedAt: Timestamp?
+
+    // Cached data
+    var fromUserName: String?
+    var toUserName: String
+    var fromUsername: String?
+    var toUsername: String
+}
+
+enum TransactionType: String, Codable {
+    case gift
+    case bonus
+    case earned
+    case penalty
+}
+
+enum TransactionStatus: String, Codable {
+    case pending
+    case completed
+    case failed
+}
+```
+
+**Firestore Indexes Required:**
+
+-  Composite: `toUserId` (Ascending) + `createdAt` (Descending)
+-  Composite: `fromUserId` (Ascending) + `createdAt` (Descending)
+-  Single field: `createdAt` (Descending) - for global feed
+
+**Security Rules:**
+
+```
+match /transactions/{transactionId} {
+  allow read: if request.auth != null &&
+              (resource.data.fromUserId == request.auth.uid ||
+               resource.data.toUserId == request.auth.uid);
+  allow write: if false; // Cloud Functions only for atomic operations
+}
+```
+
+---
+
+### Collection 4: `notifications/`
+
+**Purpose:** User notifications
+
+**Document ID:** Auto-generated
+
+**Schema:**
+
+```swift
+struct AppNotification: Codable, Identifiable {
+    @DocumentID var id: String?
+
+    var userId: String                 // Notification owner
+    var type: String                   // Notification type
+    var title: String                  // "Jake sent you points!"
+    var message: String                // Full message
+    var relatedUserId: String?         // Related user
+    var relatedTransactionId: String?  // Related transaction
+    var relatedFriendshipId: String?   // Related friendship
+    var read: Bool                     // Read status
+    var createdAt: Timestamp
+    var readAt: Timestamp?
+    var actionUrl: String?             // Deep link
+}
+
+enum NotificationType: String, Codable {
+    case giftReceived = "gift_received"
+    case friendRequest = "friend_request"
+    case friendAccepted = "friend_accepted"
+    case achievementUnlocked = "achievement_unlocked"
+}
+```
+
+**Firestore Indexes Required:**
+
+-  Composite: `userId` (Ascending) + `read` (Ascending) + `createdAt` (Descending)
+
+**Security Rules:**
+
+```
+match /notifications/{notificationId} {
+  allow read: if request.auth != null &&
+              resource.data.userId == request.auth.uid;
+  allow create: if false; // Cloud Functions only
+  allow update: if request.auth != null &&
+                resource.data.userId == request.auth.uid &&
+                request.resource.data.diff(resource.data).affectedKeys()
+                  .hasOnly(['read', 'readAt']);
+  allow delete: if false;
+}
+```
+
+---
+
+### Collection 5: `leaderboard_cache/`
+
+**Purpose:** Pre-calculated leaderboard (optional, for performance)
+
+**Document ID:** `weekly`, `monthly`, `alltime`
+
+**Schema:**
+
+```swift
+struct LeaderboardCache: Codable, Identifiable {
+    @DocumentID var id: String?        // "weekly", "monthly", "alltime"
+
+    var type: String                   // Same as ID
+    var topUsers: [LeaderboardEntry]   // Top 100 users
+    var lastUpdated: Timestamp
+    var totalUsers: Int
+}
+
+struct LeaderboardEntry: Codable {
+    var userId: String
+    var name: String
+    var username: String
+    var school: String
+    var giftsGiven: Int
+    var totalPointsGifted: Int
+    var rank: Int
+}
+```
+
+**Security Rules:**
+
+```
+match /leaderboard_cache/{cacheId} {
+  allow read: if request.auth != null;
+  allow write: if false; // Cloud Functions only
+}
+```
+
+---
+
+## 🔐 COMPLETE FIRESTORE SECURITY RULES
+
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isOwner(userId) &&
+                    !request.resource.data.diff(resource.data).affectedKeys()
+                      .hasAny(['points', 'rank', 'totalPointsEarned']);
+      allow delete: if false;
+    }
+
+    match /friendships/{friendshipId} {
+      allow read: if isSignedIn() &&
+                  (resource.data.userId1 == request.auth.uid ||
+                   resource.data.userId2 == request.auth.uid);
+      allow create: if isSignedIn() &&
+                    (request.resource.data.userId1 == request.auth.uid ||
+                     request.resource.data.userId2 == request.auth.uid);
+      allow update: if isSignedIn() &&
+                    (resource.data.userId1 == request.auth.uid ||
+                     resource.data.userId2 == request.auth.uid);
+      allow delete: if isSignedIn() &&
+                    (resource.data.userId1 == request.auth.uid ||
+                     resource.data.userId2 == request.auth.uid);
+    }
+
+    match /transactions/{transactionId} {
+      allow read: if isSignedIn() &&
+                  (resource.data.fromUserId == request.auth.uid ||
+                   resource.data.toUserId == request.auth.uid);
+      allow write: if false;
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isSignedIn() &&
+                  resource.data.userId == request.auth.uid;
+      allow create: if false;
+      allow update: if isSignedIn() &&
+                    resource.data.userId == request.auth.uid &&
+                    request.resource.data.diff(resource.data).affectedKeys()
+                      .hasOnly(['read', 'readAt']);
+      allow delete: if false;
+    }
+
+    match /leaderboard_cache/{cacheId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+  }
+}
+```
+
+---
+
+## 🏗️ BUILD STEPS
+
+**Complete each step fully before moving to next. Test thoroughly after each step.**
+
+---
+
+### **B-001**: Set up Firestore indexes
+
+**Task:** Create required indexes in Firebase Console
+
+**Steps:**
+
+1. Firebase Console → Firestore Database → Indexes tab
+2. Create these indexes:
+
+**users collection:**
+
+-  Field: `username`, Order: Ascending
+-  Field: `studentId`, Order: Ascending
+-  Field: `points`, Order: Descending
+-  Field: `totalPointsGifted`, Order: Descending
+
+**friendships collection:**
+
+-  Composite: `userId1` Ascending + `status` Ascending
+-  Composite: `userId2` Ascending + `status` Ascending
+
+**transactions collection:**
+
+-  Composite: `toUserId` Ascending + `createdAt` Descending
+-  Composite: `fromUserId` Ascending + `createdAt` Descending
+-  Field: `createdAt`, Order: Descending
+
+**notifications collection:**
+
+-  Composite: `userId` Ascending + `read` Ascending + `createdAt` Descending
+
+**Verify:** All indexes show "Enabled" status
+
+---
+
+### **B-002**: Update data models with complete schemas
+
+**Task:** Update all model files with complete Firestore-compatible schemas
+
+**Files to update:**
+
+**models/User.swift** - Add all fields from schema
+**models/Friendship.swift** - Create with full schema
+**models/Transaction.swift** - Create with full schema  
+**models/AppNotification.swift** - Create with full schema
+
+**Code for each file:**
+
+```swift
+// models/User.swift
+import Foundation
+import FirebaseFirestore
+
+struct User: Codable, Identifiable {
+    @DocumentID var id: String?
+    var name: String
+    var username: String
+    var email: String
+    var studentId: String
+    var school: String
+    var points: Int
+    var totalPointsEarned: Int
+    var totalPointsGifted: Int
+    var giftsGiven: Int
+    var giftsReceived: Int
+    var rank: Int
+    var generosityLevel: String
+    var generosityScore: Int
+    var createdAt: Timestamp
+    var emailVerified: Bool
+    var profileImageUrl: String?
+    var lastActive: Timestamp
+    var achievements: [String]
+    var isPrivate: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case name, username, email, studentId, school
+        case points, totalPointsEarned, totalPointsGifted
+        case giftsGiven, giftsReceived, rank
+        case generosityLevel, generosityScore
+        case createdAt, emailVerified, profileImageUrl
+        case lastActive, achievements, isPrivate
+    }
+
+    var pointsExpirationDays: Int {
+        let calendar = Calendar.current
+        let createdDate = createdAt.dateValue()
+        let expirationDate = calendar.date(byAdding: .day, value: 30, to: createdDate)!
+        let days = calendar.dateComponents([.day], from: Date(), to: expirationDate).day ?? 0
+        return max(0, days)
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decodeIfPresent(String.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        username = try container.decode(String.self, forKey: .username)
+        email = try container.decode(String.self, forKey: .email)
+        studentId = try container.decode(String.self, forKey: .studentId)
+        school = try container.decode(String.self, forKey: .school)
+        points = try container.decodeIfPresent(Int.self, forKey: .points) ?? 500
+        totalPointsEarned = try container.decodeIfPresent(Int.self, forKey: .totalPointsEarned) ?? 500
+        totalPointsGifted = try container.decodeIfPresent(Int.self, forKey: .totalPointsGifted) ?? 0
+        giftsGiven = try container.decodeIfPresent(Int.self, forKey: .giftsGiven) ?? 0
+        giftsReceived = try container.decodeIfPresent(Int.self, forKey: .giftsReceived) ?? 0
+        rank = try container.decodeIfPresent(Int.self, forKey: .rank) ?? 999
+        generosityLevel = try container.decodeIfPresent(String.self, forKey: .generosityLevel) ?? "Newbie"
+        generosityScore = try container.decodeIfPresent(Int.self, forKey: .generosityScore) ?? 0
+        createdAt = try container.decode(Timestamp.self, forKey: .createdAt)
+        emailVerified = try container.decode(Bool.self, forKey: .emailVerified)
+        profileImageUrl = try container.decodeIfPresent(String.self, forKey: .profileImageUrl)
+        lastActive = try container.decode(Timestamp.self, forKey: .lastActive)
+        achievements = try container.decodeIfPresent([String].self, forKey: .achievements) ?? []
+        isPrivate = try container.decodeIfPresent(Bool.self, forKey: .isPrivate) ?? false
     }
 }
 ```
 
-3. CREATE ActivityRow component:
 ```swift
-struct ActivityRow: View {
-    let activity: Activity
+// models/Friendship.swift
+import Foundation
+import FirebaseFirestore
 
-    var body: some View {
-        HStack(spacing: 12) {
-            // Avatar
-            Circle()
-                .fill(Color(hex: "E5E5EA"))
-                .frame(width: 44, height: 44)
-                .overlay(
-                    Image(systemName: "person.fill")
-                        .foregroundColor(Color(hex: "8E8E93"))
-                        .font(.system(size: 20))
-                )
+struct Friendship: Codable, Identifiable {
+    @DocumentID var id: String?
+    var userId1: String
+    var userId2: String
+    var status: FriendshipStatus
+    var initiatedBy: String
+    var createdAt: Timestamp
+    var acceptedAt: Timestamp?
+    var user1Name: String
+    var user2Name: String
+    var user1Username: String
+    var user2Username: String
 
-            // Content
-            VStack(alignment: .leading, spacing: 2) {
-                Text(activity.displayText)
-                    .font(.system(size: 15))
-                    .foregroundColor(.black)
-
-                Text(activity.timeAgo)
-                    .font(.system(size: 13))
-                    .foregroundColor(Color(hex: "8E8E93"))
-            }
-
-            Spacer()
-
-            // Amount
-            Text(activity.amountText)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundColor(activity.amountColor)
-        }
-        .padding(16)
-        .background(Color.white)
-        .cornerRadius(12)
-        .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
+    enum CodingKeys: String, CodingKey {
+        case id
+        case userId1, userId2, status, initiatedBy
+        case createdAt, acceptedAt
+        case user1Name, user2Name
+        case user1Username, user2Username
     }
 }
 
-// Helper computed properties for Activity model
-extension Activity {
+enum FriendshipStatus: String, Codable {
+    case pending
+    case accepted
+    case blocked
+}
+```
+
+```swift
+// models/Transaction.swift
+import Foundation
+import FirebaseFirestore
+
+struct Transaction: Codable, Identifiable {
+    @DocumentID var id: String?
+    var type: TransactionType
+    var fromUserId: String?
+    var toUserId: String
+    var amount: Int
+    var message: String?
+    var status: TransactionStatus
+    var createdAt: Timestamp
+    var completedAt: Timestamp?
+    var fromUserName: String?
+    var toUserName: String
+    var fromUsername: String?
+    var toUsername: String
+
+    enum CodingKeys: String, CodingKey {
+        case id, type, fromUserId, toUserId, amount, message, status
+        case createdAt, completedAt
+        case fromUserName, toUserName, fromUsername, toUsername
+    }
+
     var displayText: String {
         switch type {
-        case .received:
-            if let name = fromName {
-                return "\(name) sent you points"
+        case .gift:
+            if let fromName = fromUserName {
+                return amount > 0 ? "\(fromName) sent you \(amount) points" : "You sent \(abs(amount)) points to \(toUserName)"
             }
-            return "You received points"
-        case .sent:
-            if let name = toName {
-                return "You sent \(amount) points to \(name)"
-            }
-            return "You sent points"
+            return "Gift transaction"
+        case .bonus:
+            return "Weekly bonus earned"
         case .earned:
-            return message ?? "You earned points"
+            return message ?? "Points earned"
+        case .penalty:
+            return message ?? "Points deducted"
         }
+    }
+
+    var timeAgo: String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter.localizedString(for: createdAt.dateValue(), relativeTo: Date())
     }
 
     var amountText: String {
-        type == .sent ? "-\(amount)" : "+\(amount)"
+        let prefix = (fromUserId != nil && type == .gift) ? "-" : "+"
+        return "\(prefix)\(amount)"
     }
 
     var amountColor: Color {
-        type == .sent ? Color(hex: "8E8E93") : Color(hex: "34C759")
+        (fromUserId != nil && type == .gift) ? Color(hex: "8E8E93") : Color(hex: "34C759")
     }
 }
+
+enum TransactionType: String, Codable {
+    case gift
+    case bonus
+    case earned
+    case penalty
+}
+
+enum TransactionStatus: String, Codable {
+    case pending
+    case completed
+    case failed
+}
 ```
-````
+
+```swift
+// models/AppNotification.swift
+import Foundation
+import FirebaseFirestore
+
+struct AppNotification: Codable, Identifiable {
+    @DocumentID var id: String?
+    var userId: String
+    var type: NotificationType
+    var title: String
+    var message: String
+    var relatedUserId: String?
+    var relatedTransactionId: String?
+    var relatedFriendshipId: String?
+    var read: Bool
+    var createdAt: Timestamp
+    var readAt: Timestamp?
+    var actionUrl: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, userId, type, title, message
+        case relatedUserId, relatedTransactionId, relatedFriendshipId
+        case read, createdAt, readAt, actionUrl
+    }
+}
+
+enum NotificationType: String, Codable {
+    case giftReceived = "gift_received"
+    case friendRequest = "friend_request"
+    case friendAccepted = "friend_accepted"
+    case achievementUnlocked = "achievement_unlocked"
+}
+```
+
+**Test:** Models compile without errors
 
 ---
 
-## Issue 3: Build Profile Page (Screen 10)
+### **B-003**: Build complete FirestoreService
 
-**PROBLEM:**
-Profile page doesn't exist yet. Need to build it matching Figma design.
+**Task:** Create comprehensive Firestore service with all database operations
 
-**FIGMA DESIGN SPECS:**
-CREATE: views/Main/ProfileView.swift
-LAYOUT (from top to bottom):
+**File:** services/FirestoreService.swift
 
-HEADER SECTION (White card, rounded 16pt, centered content):
+**Implementation:**
 
-Profile Avatar:
+```swift
+import Foundation
+import FirebaseFirestore
 
-Circle: 120pt diameter
-Border: 4pt, gradient (blue to purple)
-Background: Light blue
-Initial letter: First letter of name, 48pt, blue, bold
+class FirestoreService {
+    static let shared = FirestoreService()
+    private let db = Firestore.firestore()
 
-Name: "Ramadan Raji" (28pt, bold, black)
-Username: "@madisonc" (17pt, gray #8E8E93)
-School Badge: "🎓 UW Madison" (15pt, gray text, light blue background pill)
-Edit Profile Button:
+    private init() {}
 
-Text: "Edit Profile" (17pt, semibold, blue)
-Background: White
-Border: 2pt, blue
-Corner radius: 12pt
-Height: 44pt
-Width: ~150pt
+    // MARK: - User Operations
 
-STATS SECTION (3 columns, white background):
-HStack with equal spacing:
-Column 1 - Points:
+    func createUser(_ user: User) async throws {
+        guard let userId = user.id else {
+            throw FirestoreError.invalidUserId
+        }
 
-Icon: ⭐ (40pt)
-Number: "500" (32pt, bold, black)
-Label: "Points" (13pt, gray)
+        var userData = user
+        userData.createdAt = Timestamp()
+        userData.lastActive = Timestamp()
 
-Column 2 - Gifts Sent:
-
-Icon: 🎁 (40pt)
-Number: "12" (32pt, bold, black)
-Label: "Gifts Sent" (13pt, gray)
-
-Column 3 - Rank:
-
-Icon: 🏆 (40pt)
-Number: "#3" (32pt, bold, blue #007AFF)
-Label: "Your Rank" (13pt, gray)
-
-GENEROSITY LEVEL SECTION (White card, rounded 12pt):
-
-Left side:
-
-Icon: 🌱 (40pt, in light green circle)
-Title: "Generosity Level" (15pt, gray)
-Level: "Newbie" (24pt, bold, black)
-
-Right side:
-
-Score: "0 / 100" (20pt, bold, blue)
-
-Progress Bar:
-
-Background: #E5E5EA
-Fill: Blue gradient
-Height: 8pt
-Corner radius: 4pt
-Current: 0% (0/100)
-
-Help text: "Send 88 more gifts to reach 'Helper' 🌿" (13pt, gray)
-
-ACHIEVEMENTS SECTION:
-
-Header:
-
-Left: "Achievements" (22pt, bold, black)
-Right: "View All >" (15pt, blue, tappable)
-
-Achievement Grid: (2 columns, coming soon)
-
-BOTTOM TAB BAR (same as Home screen)
-
-IMPLEMENTATION:
-swiftimport SwiftUI
-
-struct ProfileView: View {
-@EnvironmentObject var authManager: AuthenticationManager
-@State private var showEditProfile = false
-
-    var user: User? {
-        authManager.currentUser
+        try db.collection("users").document(userId).setData(from: userData)
     }
 
-    var body: some View {
-        ScrollView {
-            VStack(spacing: 24) {
-                // Header Card
-                VStack(spacing: 16) {
-                    // Avatar
-                    ZStack {
-                        Circle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [Color(hex: "007AFF"), Color(hex: "5856D6")],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .frame(width: 128, height: 128)
-
-                        Circle()
-                            .fill(Color(hex: "E3F2FD"))
-                            .frame(width: 120, height: 120)
-
-                        Text(String(user?.name.prefix(1) ?? "M").uppercased())
-                            .font(.system(size: 48, weight: .bold))
-                            .foregroundColor(Color(hex: "007AFF"))
-                    }
-
-                    // Name
-                    Text(user?.name ?? "User")
-                        .font(.system(size: 28, weight: .bold))
-                        .foregroundColor(.black)
-
-                    // Username
-                    Text("@\(user?.username ?? "username")")
-                        .font(.system(size: 17))
-                        .foregroundColor(Color(hex: "8E8E93"))
-
-                    // School Badge
-                    HStack(spacing: 6) {
-                        Text("🎓")
-                            .font(.system(size: 16))
-                        Text(user?.school ?? "University")
-                            .font(.system(size: 15))
-                            .foregroundColor(Color(hex: "007AFF"))
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(Color(hex: "E3F2FD"))
-                    .cornerRadius(20)
-
-                    // Edit Profile Button
-                    Button(action: { showEditProfile = true }) {
-                        Text("Edit Profile")
-                            .font(.system(size: 17, weight: .semibold))
-                            .foregroundColor(Color(hex: "007AFF"))
-                            .frame(width: 150, height: 44)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color(hex: "007AFF"), lineWidth: 2)
-                            )
-                    }
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 32)
-                .background(Color.white)
-                .cornerRadius(16)
-                .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
-                .padding(.horizontal, 16)
-
-                // Stats Section
-                HStack(spacing: 0) {
-                    StatColumn(icon: "⭐", value: "\(user?.points ?? 500)", label: "Points")
-                    StatColumn(icon: "🎁", value: "\(user?.giftsGiven ?? 0)", label: "Gifts Sent")
-                    StatColumn(
-                        icon: "🏆",
-                        value: "#\(user?.rank ?? 3)",
-                        label: "Your Rank",
-                        valueColor: Color(hex: "007AFF")
-                    )
-                }
-                .padding(.vertical, 20)
-                .background(Color.white)
-                .cornerRadius(12)
-                .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
-                .padding(.horizontal, 16)
-
-                // Generosity Level Card
-                VStack(alignment: .leading, spacing: 16) {
-                    HStack {
-                        // Icon + Text
-                        HStack(spacing: 12) {
-                            ZStack {
-                                Circle()
-                                    .fill(Color(hex: "E8F5E9"))
-                                    .frame(width: 56, height: 56)
-                                Text("🌱")
-                                    .font(.system(size: 28))
-                            }
-
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Generosity Level")
-                                    .font(.system(size: 15))
-                                    .foregroundColor(Color(hex: "8E8E93"))
-                                Text("Newbie")
-                                    .font(.system(size: 24, weight: .bold))
-                                    .foregroundColor(.black)
-                            }
-                        }
-
-                        Spacer()
-
-                        // Score
-                        Text("0 / 100")
-                            .font(.system(size: 20, weight: .bold))
-                            .foregroundColor(Color(hex: "007AFF"))
-                    }
-
-                    // Progress Bar
-                    GeometryReader { geometry in
-                        ZStack(alignment: .leading) {
-                            Rectangle()
-                                .fill(Color(hex: "E5E5EA"))
-                                .cornerRadius(4)
-
-                            Rectangle()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [Color(hex: "007AFF"), Color(hex: "5856D6")],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
-                                .frame(width: geometry.size.width * 0.0) // 0% progress
-                                .cornerRadius(4)
-                        }
-                    }
-                    .frame(height: 8)
-
-                    // Help Text
-                    Text("Send 88 more gifts to reach 'Helper' 🌿")
-                        .font(.system(size: 13))
-                        .foregroundColor(Color(hex: "8E8E93"))
-                }
-                .padding(20)
-                .background(Color.white)
-                .cornerRadius(12)
-                .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
-                .padding(.horizontal, 16)
-
-                // Achievements Section
-                VStack(alignment: .leading, spacing: 16) {
-                    HStack {
-                        Text("Achievements")
-                            .font(.system(size: 22, weight: .bold))
-                            .foregroundColor(.black)
-
-                        Spacer()
-
-                        Button(action: {}) {
-                            Text("View All >")
-                                .font(.system(size: 15))
-                                .foregroundColor(Color(hex: "007AFF"))
-                        }
-                    }
-
-                    // Coming soon placeholder
-                    Text("Coming soon...")
-                        .font(.system(size: 15))
-                        .foregroundColor(Color(hex: "8E8E93"))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 40)
-                }
-                .padding(.horizontal, 16)
-
-                // Bottom spacing for tab bar
-                Spacer()
-                    .frame(height: 80)
-            }
-            .padding(.top, 16)
+    func getUser(userId: String) async throws -> User {
+        let document = try await db.collection("users").document(userId).getDocument()
+        guard document.exists else {
+            throw FirestoreError.userNotFound
         }
-        .background(Color(hex: "F2F2F7"))
-        .sheet(isPresented: $showEditProfile) {
-            EditProfileView()
-                .environmentObject(authManager)
-        }
+        return try document.data(as: User.self)
     }
 
-}
-
-struct StatColumn: View {
-let icon: String
-let value: String
-let label: String
-var valueColor: Color = .black
-
-    var body: some View {
-        VStack(spacing: 8) {
-            Text(icon)
-                .font(.system(size: 40))
-
-            Text(value)
-                .font(.system(size: 32, weight: .bold))
-                .foregroundColor(valueColor)
-
-            Text(label)
-                .font(.system(size: 13))
-                .foregroundColor(Color(hex: "8E8E93"))
-        }
-        .frame(maxWidth: .infinity)
+    func updateUser(userId: String, data: [String: Any]) async throws {
+        try await db.collection("users").document(userId).updateData(data)
     }
 
-}
+    func isUsernameAvailable(_ username: String) async throws -> Bool {
+        let snapshot = try await db.collection("users")
+            .whereField("username", isEqualTo: username)
+            .getDocuments()
+        return snapshot.documents.isEmpty
+    }
 
-#Preview {
-ProfileView()
-.environmentObject(AuthenticationManager())
-}
-BUILD EDIT PROFILE VIEW (placeholder for now):
-swiftFILE: views/Main/EditProfileView.swift
+    func isStudentIdAvailable(_ studentId: String) async throws -> Bool {
+        let snapshot = try await db.collection("users")
+            .whereField("studentId", isEqualTo: studentId)
+            .getDocuments()
+        return snapshot.documents.isEmpty
+    }
 
-struct EditProfileView: View {
-@Environment(\.dismiss) var dismiss
+    func searchUsers(query: String) async throws -> [User] {
+        let lowercaseQuery = query.lowercased()
 
-    var body: some View {
-        NavigationStack {
-            VStack {
-                Text("Edit Profile")
-                    .font(.title)
+        let snapshot = try await db.collection("users")
+            .whereField("username", isGreaterThanOrEqualTo: lowercaseQuery)
+            .whereField("username", isLessThanOrEqualTo: lowercaseQuery + "\u{f8ff}")
+            .limit(to: 20)
+            .getDocuments()
 
-                Text("Coming soon...")
-                    .foregroundColor(.gray)
-                    .padding()
-            }
-            .navigationTitle("Edit Profile")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                }
+        return try snapshot.documents.compactMap { try $0.data(as: User.self) }
+    }
 
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") {
-                        dismiss()
-                    }
-                    .bold()
-                }
+    // MARK: - Friendship Operations
+
+    func sendFriendRequest(from senderId: String, to receiverId: String) async throws {
+        let sender = try await getUser(userId: senderId)
+        let receiver = try await getUser(userId: receiverId)
+
+        let friendship = Friendship(
+            userId1: min(senderId, receiverId),
+            userId2: max(senderId, receiverId),
+            status: .pending,
+            initiatedBy: senderId,
+            createdAt: Timestamp(),
+            user1Name: senderId < receiverId ? sender.name : receiver.name,
+            user2Name: senderId < receiverId ? receiver.name : sender.name,
+            user1Username: senderId < receiverId ? sender.username : receiver.username,
+            user2Username: senderId < receiverId ? receiver.username : sender.username
+        )
+
+        try db.collection("friendships").addDocument(from: friendship)
+
+        // Create notification for receiver
+        try await createNotification(
+            userId: receiverId,
+            type: .friendRequest,
+            title: "New friend request",
+            message: "\(sender.name) wants to be friends",
+            relatedUserId: senderId
+        )
+    }
+
+    func acceptFriendRequest(friendshipId: String) async throws {
+        try await db.collection("friendships").document(friendshipId).updateData([
+            "status": "accepted",
+            "acceptedAt": Timestamp()
+        ])
+    }
+
+    func getFriends(userId: String) async throws -> [User] {
+        let snapshot1 = try await db.collection("friendships")
+            .whereField("userId1", isEqualTo: userId)
+            .whereField("status", isEqualTo: "accepted")
+            .getDocuments()
+
+        let snapshot2 = try await db.collection("friendships")
+            .whereField("userId2", isEqualTo: userId)
+            .whereField("status", isEqualTo: "accepted")
+            .getDocuments()
+
+        var friendIds: Set = []
+
+        for doc in snapshot1.documents {
+            let friendship = try doc.data(as: Friendship.self)
+            friendIds.insert(friendship.userId2)
+        }
+
+        for doc in snapshot2.documents {
+            let friendship = try doc.data(as: Friendship.self)
+            friendIds.insert(friendship.userId1)
+        }
+
+        var friends: [User] = []
+        for friendId in friendIds {
+            if let friend = try? await getUser(userId: friendId) {
+                friends.append(friend)
             }
         }
+
+        return friends.sorted { $0.totalPointsGifted > $1.totalPointsGifted }
     }
 
+    func areFriends(userId1: String, userId2: String) async throws -> Bool {
+        let sortedIds = [userId1, userId2].sorted()
+
+        let snapshot = try await db.collection("friendships")
+            .whereField("userId1", isEqualTo: sortedIds[0])
+            .whereField("userId2", isEqualTo: sortedIds[1])
+            .whereField("status", isEqualTo: "accepted")
+            .getDocuments()
+
+        return !snapshot.documents.isEmpty
+    }
+
+    // MARK: - Transaction Operations
+
+    func sendGift(from senderId: String, to receiverId: String, amount: Int, message: String?) async throws {
+        // Get both users
+        let sender = try await getUser(userId: senderId)
+        let receiver = try await getUser(userId: receiverId)
+
+        // Validate sender has enough points
+        guard sender.points >= amount else {
+            throw FirestoreError.insufficientPoints
+        }
+
+        // Create transaction
+        let transaction = Transaction(
+            type: .gift,
+            fromUserId: senderId,
+            toUserId: receiverId,
+            amount: amount,
+            message: message,
+            status: .completed,
+            createdAt: Timestamp(),
+            completedAt: Timestamp(),
+            fromUserName: sender.name,
+            toUserName: receiver.name,
+            fromUsername: sender.username,
+            toUsername: receiver.username
+        )
+
+        // Save transaction
+        try db.collection("transactions").addDocument(from: transaction)
+
+        // Update sender points
+        try await db.collection("users").document(senderId).updateData([
+            "points": FieldValue.increment(Int64(-amount)),
+            "totalPointsGifted": FieldValue.increment(Int64(amount)),
+            "giftsGiven": FieldValue.increment(Int64(1))
+        ])
+
+        // Update receiver points
+        try await db.collection("users").document(receiverId).updateData([
+            "points": FieldValue.increment(Int64(amount)),
+            "totalPointsEarned": FieldValue.increment(Int64(amount)),
+            "giftsReceived": FieldValue.increment(Int64(1))
+        ])
+
+        // Create notification
+        try await createNotification(
+            userId: receiverId,
+            type: .giftReceived,
+            title: "Points received!",
+            message: "\(sender.name) sent you \(amount) points",
+            relatedUserId: senderId
+        )
+    }
+
+    func getTransactions(userId: String, limit: Int = 20) async throws -> [Transaction] {
+        let sentSnapshot = try await db.collection("transactions")
+            .whereField("fromUserId", isEqualTo: userId)
+            .order(by: "createdAt", descending: true)
+            .limit(to: limit / 2)
+            .getDocuments()
+
+        let receivedSnapshot = try await db.collection("transactions")
+            .whereField("toUserId", isEqualTo: userId)
+            .order(by: "createdAt", descending: true)
+            .limit(to: limit / 2)
+            .getDocuments()
+
+        var transactions: [Transaction] = []
+
+        transactions += try sentSnapshot.documents.compactMap { try $0.data(as: Transaction.self) }
+        transactions += try receivedSnapshot.documents.compactMap { try $0.data(as: Transaction.self) }
+
+        return transactions.sorted { $0.createdAt.dateValue() > $1.createdAt.dateValue() }
+            .prefix(limit)
+            .map { $0 }
+    }
+
+    // MARK: - Notification Operations
+
+    func createNotification(userId: String, type: NotificationType, title: String, message: String, relatedUserId: String? = nil) async throws {
+        let notification = AppNotification(
+            userId: userId,
+            type: type,
+            title: title,
+            message: message,
+            relatedUserId: relatedUserId,
+            read: false,
+            createdAt: Timestamp()
+        )
+
+        try db.collection("notifications").addDocument(from: notification)
+    }
+
+    func getNotifications(userId: String) async throws -> [AppNotification] {
+        let snapshot = try await db.collection("notifications")
+            .whereField("userId", isEqualTo: userId)
+            .order(by: "createdAt", descending: true)
+            .limit(to: 50)
+            .getDocuments()
+
+        return try snapshot.documents.compactMap { try $0.data(as: AppNotification.self) }
+    }
+
+    func markNotificationRead(notificationId: String) async throws {
+        try await db.collection("notifications").document(notificationId).updateData([
+            "read": true,
+            "readAt": Timestamp()
+        ])
+    }
+
+    func getUnreadCount(userId: String) async throws -> Int {
+        let snapshot = try await db.collection("notifications")
+            .whereField("userId", isEqualTo: userId)
+            .whereField("read", isEqualTo: false)
+            .getDocuments()
+
+        return snapshot.documents.count
+    }
+
+    // MARK: - Leaderboard Operations
+
+    func getLeaderboard(limit: Int = 100) async throws -> [User] {
+        let snapshot = try await db.collection("users")
+            .order(by: "totalPointsGifted", descending: true)
+            .limit(to: limit)
+            .getDocuments()
+
+        return try snapshot.documents.compactMap { try $0.data(as: User.self) }
+    }
+
+    func getUserRank(userId: String) async throws -> Int {
+        let user = try await getUser(userId: userId)
+
+        let snapshot = try await db.collection("users")
+            .whereField("totalPointsGifted", isGreaterThan: user.totalPointsGifted)
+            .getDocuments()
+
+        return snapshot.documents.count + 1
+    }
 }
 
+enum FirestoreError: LocalizedError {
+    case invalidUserId
+    case userNotFound
+    case insufficientPoints
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidUserId: return "Invalid user ID"
+        case .userNotFound: return "User not found"
+        case .insufficientPoints: return "Not enough points"
+        }
+    }
+}
 ```
 
-```
+**Test:** All methods compile and work with test data
 
 ---
 
-## ✅ IMPLEMENTATION CHECKLIST
+### **B-004**: Update HomeView to use real Firebase data
 
-**Phase 1: Fix Tab Bar (30 min)**
+**Task:** Replace sample data with live Firestore queries
 
--  [ ] Create CustomTabBar component OR increase icon sizes
--  [ ] Test: Icons are clearly visible (26pt)
--  [ ] Test: Labels are 11pt
--  [ ] Test: Active/inactive colors work
+**File:** views/Main/HomeView.swift
 
-**Phase 2: Fix HomeView (20 min)**
+**Changes:**
 
--  [ ] Add sample activity data
--  [ ] Create ActivityRow component
--  [ ] Update activity section to show data
--  [ ] Verify all spacing matches Figma
+1. Remove sample activities
+2. Fetch real transactions
+3. Use real user points
+4. Add real-time listeners
 
-**Phase 3: Build ProfileView (45 min)**
+**Test:**
 
--  [ ] Create ProfileView.swift
--  [ ] Build header with avatar
--  [ ] Build stats section (3 columns)
--  [ ] Build generosity level card
--  [ ] Build achievements section
--  [ ] Create EditProfileView placeholder
+-  Points display correctly
+-  Activity feed shows real data
+-  Updates when data changes
 
-**Phase 4: Connect Everything (15 min)**
+---
 
--  [ ] Update tab navigation to include ProfileView
--  [ ] Test navigation between all tabs
--  [ ] Verify data displays correctly
+### **B-005**: Build FriendsView with real data
+
+**Task:** Build complete friends list screen
+
+**File:** views/Main/FriendsView.swift
+
+**Features:**
+
+-  Fetch friends from Firestore
+-  Show friend count
+-  Display ranked friends
+-  Add friend button
+-  Navigate to profiles
+
+**Test:**
+
+-  Friends load correctly
+-  Count is accurate
+-  Add friend works
+
+---
+
+### **B-006**: Build AddFriendView with search
+
+**Task:** Create friend search and add functionality
+
+**File:** views/Main/AddFriendView.swift
+
+**Features:**
+
+-  Search users by username
+-  Show search results
+-  Send friend requests
+-  Handle different states
+
+**Test:**
+
+-  Search finds users
+-  Friend requests send successfully
+-  States update correctly
+
+---
+
+### **B-007**: Build GiftPointsView
+
+**Task:** Build gift sending interface
+
+**File:** views/Main/GiftPointsView.swift
+
+**Features:**
+
+-  Select friend recipient
+-  Choose amount with presets
+-  Add optional message
+-  Validate balance
+-  Send gift via Firestore
+
+**Test:**
+
+-  Can select friend
+-  Amount validation works
+-  Gift sends successfully
+-  Balances update correctly
+
+---
+
+### **B-008**: Build GiftSuccessView modal
+
+**Task:** Create success celebration modal
+
+**File:** views/Main/GiftSuccessView.swift
+
+**Features:**
+
+-  Animated checkmark
+-  Show transaction details
+-  Display new balance
+-  Navigate to leaderboard or close
+
+**Test:**
+
+-  Animation plays smoothly
+-  Data displays correctly
+-  Navigation works
+
+---
+
+### **B-009**: Build LeaderboardView
+
+**Task:** Build leaderboard with real rankings
+
+**File:** views/Main/LeaderboardView.swift
+
+**Features:**
+
+-  Top 3 podium visualization
+-  Remaining users list
+-  Highlight current user
+-  Real-time rankings
+
+**Test:**
+
+-  Rankings are correct
+-  Current user highlighted
+-  Updates in real-time
+
+---
+
+### **B-010**: Update ProfileView with real data
+
+**Task:** Add real activity and functional settings
+
+**File:** views/Main/ProfileView.swift
+
+**Features:**
+
+-  Real recent activity
+-  Functional settings
+-  Working logout
+
+**Test:**
+
+-  Activity loads
+-  Settings work
+-  Logout successful
+
+---
+
+### **B-011**: Build settings screens
+
+**Task:** Create placeholder settings screens
+
+**Files:**
+
+-  views/Settings/PrivacySettingsView.swift
+-  views/Settings/HelpSupportView.swift
+-  views/Settings/AboutView.swift
+
+**Test:** All navigate correctly
+
+---
+
+### **B-012**: Add notification badge to bell
+
+**Task:** Show unread count on notification icon
+
+**File:** views/Main/HomeView.swift
+
+**Test:** Badge shows correct count
+
+---
+
+### **B-013**: Test entire app end-to-end
+
+**Task:** Complete testing with real data
+
+**Test Scenarios:**
+
+-  Sign up → Verify → Login
+-  Add friends
+-  Send gifts
+-  Check leaderboard
+-  View profile
+-  Logout
+
+**Fix all bugs found**
+
+---
+
+### **B-014**: Add loading states and error handling
+
+**Task:** Improve UX with proper states
+
+**Add to all views:**
+
+-  Loading spinners
+-  Error messages
+-  Empty states
+-  Retry buttons
+
+**Test:** All states work correctly
+
+---
+
+### **B-015**: Add animations and polish
+
+**Task:** Smooth transitions and animations
+
+**Add:**
+
+-  Tab transitions
+-  Gift celebration
+-  Points count-up
+-  List stagger animations
+
+**Test:** Animations feel smooth
+
+---
+
+### **B-016**: Test on different iPhone sizes
+
+**Task:** Ensure UI works on all devices
+
+**Test on:**
+
+-  iPhone SE
+-  iPhone 15
+-  iPhone 15 Pro Max
+
+**Fix:** Layout issues
+
+---
+
+### **B-017**: Test in dark mode
+
+**Task:** Ensure dark mode compatibility
+
+**Test:** All screens in dark mode
+**Fix:** Contrast issues
+
+---
+
+### **B-018**: Final optimization
+
+**Task:** Performance and bug fixes
+
+**Optimize:**
+
+-  Reduce Firestore reads
+-  Cache data appropriately
+-  Fix memory leaks
+
+**Test:** No crashes, smooth performance
+
+---

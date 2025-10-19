@@ -87,7 +87,7 @@ class AuthenticationManager: ObservableObject {
             } catch {
                 // User authenticated but no Firestore document exists
                 errorMessage = "User profile not found. Please contact support."
-                try? await Auth.auth().signOut()
+                try? Auth.auth().signOut()
                 throw AuthError.userNotFoundInDatabase
             }
             
