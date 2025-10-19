@@ -193,7 +193,7 @@ struct AddFriendView: View {
         }
     }
     
-    func getFriendshipStatus(between userId1: String, userId2: String) async -> FriendStatus {
+    func getFriendshipStatus(between userId1: String, and userId2: String) async -> FriendStatus {
         do {
             // Get the friendship document if it exists
             if let friendship = try await FirestoreService.shared.getFriendship(userId1: userId1, userId2: userId2) {
