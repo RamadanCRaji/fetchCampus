@@ -52,13 +52,18 @@ struct VerificationRequiredView: View {
                     .frame(maxWidth: 300)
                 
                 // Link Expiration Notice
-                Text("⏰ Links expire after 1 hour - use Resend if needed")
-                    .font(.system(size: 13))
-                    .foregroundColor(Color(hex: "FF9500"))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 40)
-                    .padding(.top, 4)
-                    .padding(.top, 8)
+                VStack(spacing: 8) {
+                    Text("⏰ Links expire after 1 hour")
+                        .font(.system(size: 13))
+                        .foregroundColor(Color(hex: "FF9500"))
+                    
+                    Text("❓ See 'expired' error? The link may have worked! Tap 'I've Verified' below to check.")
+                        .font(.system(size: 12))
+                        .foregroundColor(Color(hex: "8E8E93"))
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.horizontal, 40)
+                .padding(.top, 8)
                 
                 // Success Message
                 if showSuccess {
