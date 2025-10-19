@@ -69,7 +69,7 @@ struct User: Codable, Identifiable {
         totalPointsGifted = try container.decodeIfPresent(Int.self, forKey: .totalPointsGifted) ?? 0
         giftsGiven = try container.decodeIfPresent(Int.self, forKey: .giftsGiven) ?? 0
         giftsReceived = try container.decodeIfPresent(Int.self, forKey: .giftsReceived) ?? 0
-        rank = try container.decodeIfPresent(Int.self, forKey: .rank) ?? 999
+        rank = try container.decodeIfPresent(Int.self, forKey: .rank) ?? 0
         generosityLevel = try container.decodeIfPresent(String.self, forKey: .generosityLevel) ?? "Newbie"
         generosityScore = try container.decodeIfPresent(Int.self, forKey: .generosityScore) ?? 0
         createdAt = try container.decode(Timestamp.self, forKey: .createdAt)
@@ -93,7 +93,7 @@ struct User: Codable, Identifiable {
         totalPointsGifted: Int = 0,
         giftsGiven: Int = 0,
         giftsReceived: Int = 0,
-        rank: Int = 999,
+        rank: Int = 0,
         generosityLevel: String = "Newbie",
         generosityScore: Int = 0,
         createdAt: Timestamp = Timestamp(),

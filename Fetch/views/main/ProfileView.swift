@@ -197,6 +197,29 @@ struct ProfileView: View {
                     }
                     .padding(.horizontal, 16)
                     
+                    // Sign Out Button
+                    Button(action: {
+                        try? authManager.logout()
+                    }) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "rectangle.portrait.and.arrow.right")
+                                .font(.system(size: 16))
+                            Text("Sign Out")
+                                .font(.system(size: 17, weight: .semibold))
+                        }
+                        .foregroundColor(.red)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(Color.white)
+                        .cornerRadius(12)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.red.opacity(0.3), lineWidth: 1)
+                        )
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                    
                     // Bottom spacing for tab bar
                     Spacer()
                         .frame(height: 80)

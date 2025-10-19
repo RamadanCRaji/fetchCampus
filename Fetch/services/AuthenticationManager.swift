@@ -81,6 +81,16 @@ class AuthenticationManager: ObservableObject {
             // Store user email
             userEmail = authResult.user.email
             
+            // Verify user document exists in Firestore
+            do {
+                let _ = try await FirestoreService.shared.getUser(userId: authResult.user.uid)
+            } catch {
+                // User authenticated but no Firestore document exists
+                errorMessage = "User profile not found. Please contact support."
+                try? await Auth.auth().signOut()
+                throw AuthError.userNotFoundInDatabase
+            }
+            
             // Check email verification
             if !authResult.user.isEmailVerified {
                 // Don't throw error - instead set flag to show verification screen
@@ -266,6 +276,7 @@ enum AuthError: LocalizedError {
     case additionalInfoRequired
     case noUser
     case alreadyVerified
+    case userNotFoundInDatabase
     
     var errorDescription: String? {
         switch self {
@@ -277,6 +288,8 @@ enum AuthError: LocalizedError {
             return "No user is currently logged in"
         case .alreadyVerified:
             return "Your email is already verified"
+        case .userNotFoundInDatabase:
+            return "User profile not found in database"
         }
     }
 }
