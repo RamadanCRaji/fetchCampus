@@ -109,13 +109,16 @@ struct AddFriendView: View {
                         ScrollView {
                             VStack(spacing: 8) {
                                 ForEach(searchResults) { user in
-                                    UserSearchRow(
-                                        user: user,
-                                        status: friendshipStatuses[user.id ?? ""] ?? .none,
-                                        onAddFriend: {
-                                            sendFriendRequest(to: user)
-                                        }
-                                    )
+                                    NavigationLink(destination: UserProfileView(user: user).environmentObject(authManager)) {
+                                        UserSearchRow(
+                                            user: user,
+                                            status: friendshipStatuses[user.id ?? ""] ?? .none,
+                                            onAddFriend: {
+                                                sendFriendRequest(to: user)
+                                            }
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
                                 }
                             }
                             .padding(.horizontal, 16)
